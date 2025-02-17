@@ -12,12 +12,20 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
 
       - id: changed-files
-        run: git show --format= --name-only -- ':!preview/'
+        run: |
+          files=$(git diff --name-only HEAD~1 HEAD -- ':!preview/')
+          if [ -z "$files" ]; then
+            echo "::set-output name=approve::true"
+          else
+            echo "::set-output name=approve::false"
+          fi
 
       - uses: actions/github-script@v7
-        if: false
+        if: ${{ steps.changed-files.outputs.approve == 'true' }}
         with:
           script: |
             const result = await github.pulls.createReview({
