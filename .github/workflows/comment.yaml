@@ -10,8 +10,8 @@ jobs:
         runs-on: ubuntu-latest
         steps:
             - run: |
-                gh pr comment 13 --body <<EOF
-                @ghost Your changes have been tested and approved and are now ready to be merged.
+                gh pr comment 13 --body <<-EOF
+                ${{ github.event.pull_request.user.login }} Your changes have been tested and approved and are now ready to be merged.
 
                 Comment the text below exactly as shown (without any additional text) to start a Terraform Apply. If there are no issues, your pull request will be automatically merged into the main branch.
 
