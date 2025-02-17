@@ -1,28 +1,21 @@
-# This is a basic workflow to help you get started with Actions
+name: Comment Help
 
-name: Terraform Apply
-
-on: issue_comment
+on:
+    pull_request:
+      types: [opened]
 
 jobs:
-    pr_commented:
-        # This job only runs for pull request comments
-        name: PR comment
-        if: ${{ github.event.issue.pull_request }}
+    comment_help:
+        name: Comment Terraform Apply Help
         runs-on: ubuntu-latest
         steps:
-            - uses: actions/checkout@v4
-            - run: gh pr checkout ${{ github.event.issue.number }}
-
-            - run: echo "$GITHUB_CONTEXT"
-
             - run: |
-                if [[ "${{ github.event.comment.body }}" == "terraform plan" ]]; then
-                    exit 0
-                fi
+                gh pr comment 13 --body <<EOF
+                @ghost Your changes have been tested and approved and are now ready to be merged.
 
-                exit 1
-        env:
-            GH_TOKEN: ${{ secrets.GITHUB_TOKEN }} # required for gh
-            NUMBER: ${{ github.event.issue.number }}
-            GITHUB_CONTEXT: ${{ toJson(github) }}
+                Comment the text below exactly as shown (without any additional text) to start a Terraform Apply. If there are no issues, your pull request will be automatically merged into the main branch.
+
+                ```
+                terraform apply
+                ```
+                EOF
