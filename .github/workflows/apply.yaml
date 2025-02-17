@@ -13,12 +13,12 @@ jobs:
       statuses: write
 
     steps:
-      - name: Set commit status to pending
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          gh api repos/${{ github.repository }}/statuses/${{ github.event.issue.pull_request.head.sha }} \
-            -f state='pending' -f description='Terraform Apply in progress' -f context='terraform-apply'
+    #   - name: Set commit status to pending
+    #     env:
+    #       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    #     run: |
+    #       gh api repos/${{ github.repository }}/statuses/${{ github.event.issue.pull_request.head.sha }} \
+    #         -f state='pending' -f description='Terraform Apply in progress' -f context='terraform-apply'
 
       - name: Run Terraform Apply
         run: |
@@ -26,19 +26,18 @@ jobs:
           # Simulate Terraform Apply (replace with real command)
           sleep 5
 
-      - name: Set commit status to success
-        if: success()
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          gh api repos/${{ github.repository }}/statuses/${{ github.event.issue.pull_request.head.sha }} \
-            -f state='success' -f description='Terraform Apply completed' -f context='terraform-apply'
+    #   - name: Set commit status to success
+    #     if: success()
+    #     env:
+    #       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    #     run: |
+    #       gh api repos/${{ github.repository }}/statuses/${{ github.event.issue.pull_request.head.sha }} \
+    #         -f state='success' -f description='Terraform Apply completed' -f context='terraform-apply'
 
-      - name: Set commit status to failure
-        if: failure()
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          gh api repos/${{ github.repository }}/statuses/${{ github.event.issue.pull_request.head.sha }} \
-            -f state='failure' -f description='Terraform Apply failed' -f context='terraform-apply'
-            
+    #   - name: Set commit status to failure
+    #     if: failure()
+    #     env:
+    #       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    #     run: |
+    #       gh api repos/${{ github.repository }}/statuses/${{ github.event.issue.pull_request.head.sha }} \
+    #         -f state='failure' -f description='Terraform Apply failed' -f context='terraform-apply'
