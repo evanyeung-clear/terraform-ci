@@ -19,7 +19,7 @@ jobs:
         run: |
           files=$(git diff --name-only HEAD~1 HEAD -- ':!preview/')
           echo $files
-          
+
           if [ -z "$files" ]; then
             echo "approve=true" >> $GITHUB_OUTPUT
           else
@@ -30,7 +30,7 @@ jobs:
         if: ${{ steps.changed-files.outputs.approve == 'true' }}
         with:
           script: |
-            const result = await github.pulls.createReview({
+            const result = await octokit.rest.pulls.createReview({
               owner: context.repo.owner,
               repo: context.repo.repo,
               pull_number: context.issue.number,
