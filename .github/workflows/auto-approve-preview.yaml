@@ -18,10 +18,12 @@ jobs:
       - id: changed-files
         run: |
           files=$(git diff --name-only HEAD~1 HEAD -- ':!preview/')
+          echo $files
+          
           if [ -z "$files" ]; then
-            echo "::set-output name=approve::true"
+            echo "approve=true" >> $GITHUB_OUTPUT
           else
-            echo "::set-output name=approve::false"
+            echo "approve=false" >> $GITHUB_OUTPUT
           fi
 
       - uses: actions/github-script@v7
