@@ -11,7 +11,18 @@ jobs:
         if: ${{ github.event.issue.pull_request }}
         runs-on: ubuntu-latest
         steps:
+            - uses: actions/checkout@v4
+            - run: gh pr checkout ${{ github.event.issue.number }}
+
+            - run: echo "$GITHUB_CONTEXT"
+
             - run: |
-                echo A comment on PR $NUMBER
+                if [[ "${{ github.event.comment.body }}" == "terraform plan" ]]; then
+                    exit 0
+                fi
+
+                exit 1
         env:
+            GH_TOKEN: ${{ secrets.GITHUB_TOKEN }} # required for gh
             NUMBER: ${{ github.event.issue.number }}
+            GITHUB_CONTEXT: ${{ toJson(github) }}
