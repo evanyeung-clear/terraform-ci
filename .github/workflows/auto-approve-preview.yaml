@@ -1,4 +1,4 @@
-name: Approve PR Approval
+name: PR Approval
 on:
   pull_request:
     branches:
@@ -7,8 +7,8 @@ on:
 
 
 jobs:
-  build:
-    name: Auto-approve
+  approve:
+    name: Auto-approve changes to Preview
     runs-on: ubuntu-latest
     permissions:
       contents: read
