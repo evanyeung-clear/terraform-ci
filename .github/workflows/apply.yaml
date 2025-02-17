@@ -6,7 +6,7 @@ on:
 
 jobs:
   terraform_apply:
-    if: github.event.issue.pull_request != null && github.event.comment.body == 'terraform apply'
+    if: github.event.issue.pull_request != null && github.event.comment.body == 'terraform apply' && github.event.issue.state == 'open'
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write
@@ -20,11 +20,16 @@ jobs:
     #       gh api repos/${{ github.repository }}/statuses/${{ github.event.issue.pull_request.head.sha }} \
     #         -f state='pending' -f description='Terraform Apply in progress' -f context='terraform-apply'
 
+      - name: Checkout pull request
+        uses: actions/checkout@v4
+        with:
+          ref: refs/pull/${{ github.event.issue.number }}/head    
+  
       - name: Run Terraform Apply
         run: |
           echo "Running Terraform Apply..."
           # Simulate Terraform Apply (replace with real command)
-          sleep 5
+          sleep 1
 
     #   - name: Set commit status to success
     #     if: success()
