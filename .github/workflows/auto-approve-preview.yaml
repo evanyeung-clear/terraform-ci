@@ -31,6 +31,19 @@ jobs:
         if: ${{ steps.changed-files.outputs.approve == 'true' }}
         with:
           script: |
+            const reviews = await github.rest.pulls.listReviews({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number
+            })
+
+            // if review is already approved by bot, do nothing
+            for (const review of reviews.data) {
+              if (review.user.login === 'github-actions[bot]' && review.state === 'APPROVED') {
+                return
+              }
+            }
+
             const result = await github.rest.pulls.createReview({
               owner: context.repo.owner,
               repo: context.repo.repo,
