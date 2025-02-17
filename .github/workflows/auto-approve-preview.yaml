@@ -1,14 +1,12 @@
-name: Approve PR Approval
+name: PR Approval
 on:
   pull_request:
     branches:
       - main
-    types: [opened] # probably the only one you need
-
 
 jobs:
-  build:
-    name: Auto-approve
+  approve:
+    name: Auto-approve changes to Preview
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -40,3 +38,27 @@ jobs:
               event: "APPROVE"
             })
             console.log(result.status)
+
+      - uses: actions/github-script@v7
+        if: ${{ steps.changed-files.outputs.approve == 'false' }}
+        with:
+          script: |
+            const reviews = await github.rest.pulls.listReviews({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number
+            })
+
+            // if review is already approved by bot, dismiss the review
+            for (const review of reviews.data) {
+              if (review.user.login === 'github-actions[bot]' && review.state === 'APPROVED') {
+                const result = await github.rest.pulls.dismissReview({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  pull_number: context.issue.number,
+                  review_id: review.id,
+                  message: "Changes to made outside preview directory require approval from a human"
+                })
+                console.log(result.status)
+              }
+            }
