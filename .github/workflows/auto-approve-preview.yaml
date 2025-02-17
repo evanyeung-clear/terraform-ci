@@ -70,7 +70,7 @@ jobs:
                   repo: context.repo.repo,
                   pull_number: context.issue.number,
                   review_id: review.id,
-                  message: "Changes to made outside preview directory require approval from a human"
+                  message: "Changes made outside preview directory require approval from a human"
                 })
                 console.log(result.status)
               }
