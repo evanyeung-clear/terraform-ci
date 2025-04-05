@@ -12,6 +12,11 @@ on:
         default: 'production'
       mode:
         description: 'The mode to use: check, lock, unlock'
+        type: choice
+        options:
+        - lock
+        - unlock
+        - check
         required: true
         default: 'lock'
 

@@ -27,7 +27,7 @@ jobs:
           result-encoding: string
           script: |
             const url = ${{ steps.lock.outputs.link }}
-            const match = url.match(/^https:\/\/github\.com\/([^/]+)\/([^/]+)\/actions\/runs\/(\d+)/)
+            # const match = url.match(/^https:\/\/github\.com\/([^/]+)\/([^/]+)\/actions\/runs\/(\d+)/)
 
             if (!match) {
               // do not unlock
