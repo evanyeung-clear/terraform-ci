@@ -1,0 +1,30 @@
+name: lock-dispatch
+
+on:
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: 'Reason for claiming the deployment lock'
+        required: false
+      environment:
+        description: 'The environment to claim a lock for (production, staging, etc) - global is supported to claim the special global lock)'
+        required: true
+        default: 'production'
+      mode:
+        description: 'The mode to use: check, lock, unlock'
+        required: true
+        default: 'lock'
+
+permissions:
+  contents: write
+
+jobs:
+  lock:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: github/lock@vX.X.X
+        id: lock
+        with:
+          mode: ${{ github.event.inputs.mode }}
+          reason: ${{ github.event.inputs.reason }}
+          environment: ${{ github.event.inputs.environment }}
