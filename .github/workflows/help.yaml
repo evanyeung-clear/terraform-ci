@@ -1,0 +1,73 @@
+name: Comment Help
+
+on:
+  pull_request:
+    types: [opened]
+
+jobs:
+  comment_help:
+    name: How to run Terraform Apply
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/github-script@v7
+        with: 
+          script: |
+            var body = `
+            Hi, thanks for your code contributions! 🙌
+
+            If this is your first pull request here (or it’s been a while), please take a second to read how we deploy changes to Okta — it’s a little different than what you might be used to.
+
+            ### TL;DR ✅
+            After your PR gets **code approval** and **passes all pre-checks**, comment \`/terraform apply\` to apply your changes to Okta.
+
+            ---
+
+            ### How it works 🛠
+            <details>
+            <summary>We use Terraform to manage Okta infrastructure. Here's how changes get promoted:</summary>
+
+            1. **Open a pull request** (you are here)
+            Push your branch and open a PR as usual. This will trigger a terraform plan to show what would change.
+
+            2. **Review and Approve**
+            Wait for a team member to review and approve the PR. Automated pre-checks should also pass.
+
+            3. **Deploy to Okta (Pre-Merge)**
+            Once approved, comment:
+                \`\`\`
+                /terraform apply
+                \`\`\`
+                This:
+                * Grabs a deployment lock
+                * Runs \`terraform apply\` using your branch
+                * Posts a status update with the result
+
+            4. **Merge After Successful Apply**
+            Once terraform apply succeeds and the status check passes, you can merge the PR to main. 
+
+            5. **Something didn’t go as planned?**
+            If the apply fails, we auto-apply \`main\` to reset things and mark the check as failed. You can push more commits and try again. If the apply **succeeds** but something looks off, you have a chance to roll back by commenting:
+                \`\`\`
+                /deploy main
+                \`\`\`
+                before merging your pull request to roll it back.
+            </details>
+
+            ---
+
+            ### Learn more or get help 💬
+            Check out the [full deployment guide]() for advanced workflows, common gotchas, and how it all works under the hood.
+
+            If you're still unsure, feel free to comment in your PR or ping someone on the team — we’re happy to help.
+            `
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: body
+            })
+          
