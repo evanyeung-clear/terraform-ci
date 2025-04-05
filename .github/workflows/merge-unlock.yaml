@@ -26,7 +26,7 @@ jobs:
         with:
           result-encoding: string
           script: |
-            const url = ${{ steps.lock.outputs.link }}
+            const url = '${{ steps.lock.outputs.link }}'
             const match = url.match(/^https:\/\/github\.com\/([^/]+)\/([^/]+)\/actions\/runs\/(\d+)/)
 
             if (!match) {
@@ -34,19 +34,18 @@ jobs:
               return
             }
 
-            # const [, owner, repo, run_id] = match;
-            # console.log(match)
+            const [, owner, repo, run_id] = match;
 
-            # const { data: workflowRun } = await github.rest.actions.getWorkflowRun({ 
-            #   owner: owner, 
-            #   repo: repo, 
-            #   run_id: run_id 
-            # });
-            # const currentBranch = context.ref.replace('refs/head/', '')
+            const { data: workflowRun } = await github.rest.actions.getWorkflowRun({ 
+              owner: owner, 
+              repo: repo, 
+              run_id: run_id 
+            });
+            const currentBranch = context.ref.replace('refs/head/', '')
 
-            # if (workflowRun.head_branch == currentBranch) {
-            #   return 'unlock'
-            # }
+            if (workflowRun.head_branch == currentBranch) {
+              return 'unlock'
+            }
 
       - name: Release lock
         if: steps.check.outputs.results == 'unlock'
