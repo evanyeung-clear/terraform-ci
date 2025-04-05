@@ -22,48 +22,50 @@ jobs:
           sleep 1
 
       - name: Output Terraform Plan
-        run: |
-          var body = `
-          **Terraform plan** ran in \`10.98 seconds\`
-          \`\`\`
-          terraform plan --target=
-          \`\`\`
+        uses: actions/github-script@v7
+        with: 
+          script: |
+            var body = `
+            **Terraform plan** ran in \`10.98 seconds\`
+            \`\`\`
+            terraform plan --target=
+            \`\`\`
 
-          #### Diff of changes
-          \`\`\`diff
-          + # okta_group_rule.staples_organization will be updated in-place
-          ! # okta_policy_rule_signon.staples_deny must be replaced
-          \`\`\`
+            #### Diff of changes
+            \`\`\`diff
+            + # okta_group_rule.staples_organization will be updated in-place
+            ! # okta_policy_rule_signon.staples_deny must be replaced
+            \`\`\`
 
-          <details>
-          <summary>Plan: 1 to add, 1 to change, 1 to destroy.</summary>
+            <details>
+            <summary>Plan: 1 to add, 1 to change, 1 to destroy.</summary>
 
-          \`\`\`
-          # okta_group_rule.staples_organization will be updated in-place
-          ~ resource "okta_group_rule" "staples_organization" {
-              ~ expression_value  = "user.organization==\"Staples\" OR user.organization==\"STAPLES\"" -> "user.organization==\"Staples\""
-                id                = "0prpocj0f16I70MKH297"
-                name              = "Org - Staples"
-                # (4 unchanged attributes hidden)
-            }
+            \`\`\`
+            # okta_group_rule.staples_organization will be updated in-place
+            ~ resource "okta_group_rule" "staples_organization" {
+                ~ expression_value  = "user.organization==\"Staples\" OR user.organization==\"STAPLES\"" -> "user.organization==\"Staples\""
+                  id                = "0prpocj0f16I70MKH297"
+                  name              = "Org - Staples"
+                  # (4 unchanged attributes hidden)
+              }
 
-          # okta_policy_rule_signon.staples_deny must be replaced
-          -/+ resource "okta_policy_rule_signon" "staples_deny" {
-              - behaviors           = [] -> null
-              ~ id                  = "0prpogbwwa7uFIwgE297" -> (known after apply)
-              - mfa_lifetime        = 0 -> null
-              ~ name                = "Deny Staples Associate" -> "Deny Staples Associates" # forces replacement
-              ~ primary_factor      = "PASSWORD_IDP" -> (known after apply)
-              - users_excluded      = [] -> null
-                # (14 unchanged attributes hidden)
-            }
-          \`\`\`
-          </details>
-          `
+            # okta_policy_rule_signon.staples_deny must be replaced
+            -/+ resource "okta_policy_rule_signon" "staples_deny" {
+                - behaviors           = [] -> null
+                ~ id                  = "0prpogbwwa7uFIwgE297" -> (known after apply)
+                - mfa_lifetime        = 0 -> null
+                ~ name                = "Deny Staples Associate" -> "Deny Staples Associates" # forces replacement
+                ~ primary_factor      = "PASSWORD_IDP" -> (known after apply)
+                - users_excluded      = [] -> null
+                  # (14 unchanged attributes hidden)
+              }
+            \`\`\`
+            </details>
+            `
 
-          github.rest.issues.createComment({
-            issue_number: context.issue.number,
-            owner: context.repo.owner,
-            repo: context.repo.repo,
-            body: body
-          })
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: body
+            })
