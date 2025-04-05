@@ -1,0 +1,65 @@
+name: Release lock on merge
+
+on:
+  push:
+    branches: 
+      - main
+
+jobs:
+  unlock: 
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+      contents: write
+
+    steps:
+      - name: Check deployment lock
+        uses: github/lock@v2.3.1
+        id: lock
+        with:
+          mode: check
+
+      - name: Check lock branch
+        if: steps.lock.outputs.locked == 'true'
+        uses: actions/github-script@v7
+        id: check
+        with:
+          result-encoding: string
+          script: |
+            const url = ${{ steps.lock.outputs.link }}
+            const match = url.match(/^https:\/\/github\.com\/([^/]+)\/([^/]+)\/actions\/runs\/(\d+)/)
+
+            if (!match) {
+              // do not unlock
+              return
+            }
+
+            const [, owner, repo, run_id] = match;
+            const { data: workflowRun } = await github.rest.actions.getWorkflowRun({ owner, repo, run_id });
+            const currentBranch = context.ref.replace('refs/head/', '')
+
+            if (workflowRun.head_branch == currentBranch) {
+              return 'unlock'
+            }
+
+      - name: Release lock
+        if: steps.check.outputs.results == 'unlock'
+        uses: github/lock@v2.3.1
+        with:
+          mode: unlock 
+
+      - name: Check lock branch
+        uses: actions/github-script@v7
+        with:
+          script: |
+            var body = `
+            ✅ **Deployment lock released**
+            Deployment completed successfully.          
+            `
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: body
+            })

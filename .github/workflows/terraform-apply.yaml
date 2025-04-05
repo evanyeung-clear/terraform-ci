@@ -36,8 +36,11 @@ jobs:
         with:
           script: |
             var body = `
-              There is an active deployment blocking. Please try again after that deployment is completed.
-              ${{ steps.lock.outputs.link }}
+            ⛔ **Failed to acquire deployment lock** — another deployment is currently in progress.
+
+            Only one deployment can run at a time to avoid conflicts. Please wait for the active deployment to complete before trying again.
+
+            🔗 [View the current deployment](${{ steps.lock.outputs.link }})              
             `
 
             github.rest.issues.createComment({

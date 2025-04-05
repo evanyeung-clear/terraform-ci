@@ -53,7 +53,7 @@ jobs:
                 \`\`\`
                 /deploy main
                 \`\`\`
-              before merging your pull request to roll it back.
+                before merging your pull request to roll it back.
             </details>
 
             ---
