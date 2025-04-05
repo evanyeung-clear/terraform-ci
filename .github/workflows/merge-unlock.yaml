@@ -35,6 +35,8 @@ jobs:
             }
 
             const [, owner, repo, run_id] = match;
+            console.log(match)
+            
             const { data: workflowRun } = await github.rest.actions.getWorkflowRun({ 
               owner: owner, 
               repo: repo, 
