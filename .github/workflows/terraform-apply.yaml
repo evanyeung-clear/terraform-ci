@@ -21,7 +21,7 @@ jobs:
           mode: lock
 
       - name: output
-        run: echo ${{ steps.lock outputs }}
+        run: echo ${{ steps.lock.outputs }}
         
       - name: Comment if unable to obtain lock
         if: steps.lock.outcome == 'failure'
