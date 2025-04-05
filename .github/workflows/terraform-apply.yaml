@@ -13,6 +13,10 @@ jobs:
       statuses: write
 
     steps:
+      - name: Check statuses
+        run: | 
+          
+          
     #   - name: Set commit status to pending
     #     env:
     #       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
