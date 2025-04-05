@@ -28,3 +28,7 @@ jobs:
           mode: ${{ github.event.inputs.mode }}
           reason: ${{ github.event.inputs.reason }}
           environment: ${{ github.event.inputs.environment }}
+
+      - name: output
+        run: | 
+          echo '${{ toJSON(steps.lock.outputs) }}'
