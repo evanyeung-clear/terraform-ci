@@ -19,8 +19,11 @@ jobs:
         continue-on-error: true
         with:
           mode: lock
+
+      - name: output
+        run: echo ${{ steps.lock outputs }}
         
-      - name: 
+      - name: Comment if unable to obtain lock
         if: steps.lock.outcome == 'failure'
         uses: actions/github-script@v7
         with:
