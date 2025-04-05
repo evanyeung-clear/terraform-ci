@@ -138,7 +138,7 @@ jobs:
                 body: body
               })
             } else {
-              github.rest.issues.createComment({
+              github.rest.issues.updateComment({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 comment_id: commentId,
