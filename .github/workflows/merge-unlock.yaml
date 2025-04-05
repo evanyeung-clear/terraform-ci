@@ -35,7 +35,11 @@ jobs:
             }
 
             const [, owner, repo, run_id] = match;
-            const { data: workflowRun } = await github.rest.actions.getWorkflowRun({ owner, repo, run_id });
+            const { data: workflowRun } = await github.rest.actions.getWorkflowRun({ 
+              owner: owner, 
+              repo: repo, 
+              run_id: run_id 
+            });
             const currentBranch = context.ref.replace('refs/head/', '')
 
             if (workflowRun.head_branch == currentBranch) {

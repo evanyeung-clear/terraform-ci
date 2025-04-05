@@ -29,6 +29,8 @@ jobs:
         id: lock
         with:
           mode: check
+
+      # check if lock is for this branch, if so, allow
         
       - name: Comment if unable to obtain lock
         if: steps.lock.outputs.locked == 'true'
