@@ -31,4 +31,4 @@ jobs:
 
       - name: output
         run: | 
-          echo ${{ steps.lock.outputs }}
+          echo '${{ toJSON(needs.job1.outputs) }}'
