@@ -9,8 +9,7 @@ jobs:
     if: github.event.issue.pull_request != null
     runs-on: ubuntu-latest
     permissions:
-      pull-requests: read
-      contents: write
+      pull-requests: write
       statuses: write
 
     steps:
