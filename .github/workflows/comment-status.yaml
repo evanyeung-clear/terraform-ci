@@ -45,7 +45,7 @@ jobs:
             github.rest.repos.createCommitStatus({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              sha: "${{ steps.pr.outputs.head_sha }}"",
+              sha: "${{ steps.pr.outputs.head_sha }}",
               state: "pending",
               target_url: runUrl, 
               context: "terraform-apply",
@@ -69,7 +69,7 @@ jobs:
             github.rest.repos.createCommitStatus({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              sha: "${{ steps.pr.outputs.head_sha }""},
+              sha: "${{ steps.pr.outputs.head_sha }}",
               state: "success",
               target_url: runUrl, 
               context: "terraform-apply",
