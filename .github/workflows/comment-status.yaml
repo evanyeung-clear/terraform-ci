@@ -24,24 +24,53 @@ jobs:
               content: 'eyes'
             });
 
-      - name: 
+      - name: Get PR and commit SHA
+        id: pr
         uses: actions/github-script@v7
-        with: 
+        with:
           script: |
             const { data: pr } = await github.rest.pulls.get({
               owner: context.repo.owner,
               repo: context.repo.repo,
               pull_number: context.issue.number
             });
+            core.setOutput("head_sha", pr.head.sha);
 
-            const sha = pr.head.sha;
+      - name: Create status
+        uses: actions/github-script@v7
+        with: 
+          script: |
             const runUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
 
             github.rest.repos.createCommitStatus({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              sha: sha,
+              sha: ${{ steps.pr.outputs.head_sha }},
+              state: "pending",
+              target_url: runUrl, 
+              context: "terraform-apply",
+              description: "Pending - in progress"
+            });
+
+      - name: Your deployment logic
+        id: deploy
+        run: |
+          echo "simulate success"
+          sleep 5s
+          # exit 1  # uncomment to simulate failure
+
+      - name: Update status
+        uses: actions/github-script@v7
+        with: 
+          script: |
+            const runUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+
+            github.rest.repos.createCommitStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              sha: ${{ steps.pr.outputs.head_sha }},
               state: "success",
               target_url: runUrl, 
-              description: "Check passed"
+              context: "terraform-apply",
+              description: "Successful in 6s"
             });

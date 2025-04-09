@@ -1,4 +1,4 @@
-name: Terraform Apply on Comment
+name: Terraform
 
 on:
   issue_comment:
