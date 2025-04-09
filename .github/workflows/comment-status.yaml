@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       pull-requests: read
-      status: write
+      statuses: write
 
     steps:
       - name: React to comment
