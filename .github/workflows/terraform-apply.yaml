@@ -24,11 +24,11 @@ jobs:
               content: 'eyes'
             });
 
-      - name: Check deployment lock
-        uses: github/lock@v2.3.1
-        id: lock
-        with:
-          mode: check
+      # - name: Check deployment lock
+      #   uses: github/lock@v2.3.1
+      #   id: lock
+      #   with:
+      #     mode: check
 
       # check if lock is for this branch, if so, allow
         
@@ -59,7 +59,7 @@ jobs:
         if: steps.lock.outputs.locked == 'false'
         uses: github/lock@v2.3.1
         with:
-          mode: lock
+          lock_trigger: "/terraform apply"
 
   terraform_apply:
     runs-on: ubuntu-latest
