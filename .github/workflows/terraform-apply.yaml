@@ -13,16 +13,16 @@ jobs:
       contents: write
 
     steps:
-      - name: React to comment
-        uses: actions/github-script@v7
-        with:
-          script: |
-            await github.rest.reactions.createForIssueComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              comment_id: context.payload.comment.id,
-              content: 'eyes'
-            });
+      # - name: React to comment
+      #   uses: actions/github-script@v7
+      #   with:
+      #     script: |
+      #       await github.rest.reactions.createForIssueComment({
+      #         owner: context.repo.owner,
+      #         repo: context.repo.repo,
+      #         comment_id: context.payload.comment.id,
+      #         content: 'eyes'
+      #       });
 
       # - name: Check deployment lock
       #   uses: github/lock@v2.3.1
@@ -31,6 +31,12 @@ jobs:
       #     mode: check
 
       # check if lock is for this branch, if so, allow
+
+      - name: Get deployment lock
+        id: lock
+        uses: github/lock@v2.3.1
+        with:
+          lock_trigger: "/terraform apply"
         
       - name: Comment if unable to obtain lock
         if: steps.lock.outputs.locked == 'true'
@@ -55,11 +61,11 @@ jobs:
             // exit early
             core.setFailed('Failed to acquire lock.');
       
-      - name: Get deployment lock
-        if: steps.lock.outputs.locked == 'false'
-        uses: github/lock@v2.3.1
-        with:
-          lock_trigger: "/terraform apply"
+      # - name: Get deployment lock
+      #   if: steps.lock.outputs.locked == 'false'
+      #   uses: github/lock@v2.3.1
+      #   with:
+      #     lock_trigger: "/terraform apply"
 
   terraform_apply:
     runs-on: ubuntu-latest
