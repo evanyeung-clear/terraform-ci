@@ -54,17 +54,13 @@ jobs:
 
             // exit early
             core.setFailed('Failed to acquire lock.');
-            
-      - name: Get deployment lock
-        uses: github/lock@v2.3.1
-        with:
-          lock_trigger: "/terraform apply"
           
-      # - name: Get deployment lock
-      #   if: steps.lock.outputs.locked == 'false'
-      #   uses: github/lock@v2.3.1
-      #   with:
-      #     lock_trigger: "/terraform apply"
+      - name: Get deployment lock
+        if: steps.lock.outputs.locked == 'false'
+        uses: forevanyeung/lock@d785945abaac07c710e41492b627036e6acf438d
+        # uses: github/lock@v2.3.1
+        with:
+          mode: lock
 
   terraform_apply:
     runs-on: ubuntu-latest
