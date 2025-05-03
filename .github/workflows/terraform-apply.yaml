@@ -57,7 +57,7 @@ jobs:
           
       - name: Get deployment lock
         if: steps.lock.outputs.locked == 'false'
-        uses: forevanyeung/lock@d785945abaac07c710e41492b627036e6acf438d
+        uses: forevanyeung/lock@f63518ea1c8f406d9ef2f57e962b61c62a830874
         # uses: github/lock@v2.3.1
         with:
           mode: lock
