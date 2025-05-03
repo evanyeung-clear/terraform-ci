@@ -57,7 +57,7 @@ jobs:
           
       - name: Get deployment lock
         if: steps.lock.outputs.locked == 'false'
-        uses: forevanyeung/lock@22b370e11ba84c48eeebeaaac0aae3669253dec0
+        uses: forevanyeung/lock@49bf04ed23cc9fd2decd1c5e02b7f6351daec85f
         env:
           ACTIONS_RUNNER_DEBUG: true
           ACTIONS_STEP_DEBUG: true
