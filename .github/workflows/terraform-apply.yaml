@@ -61,6 +61,7 @@ jobs:
         # uses: github/lock@v2.3.1
         with:
           mode: lock
+          link: ${{ github.event.comment.html_url }}
 
   terraform_apply:
     runs-on: ubuntu-latest
