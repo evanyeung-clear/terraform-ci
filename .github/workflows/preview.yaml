@@ -20,6 +20,10 @@ jobs:
   plan:
     if: github.event_name == 'pull_request'
     uses: ./.github/workflows/terraform-plan.yaml
+    permissions:
+      pull-requests: write
+      statuses: write
+      checks: write
   
   # apply:
   #   if: >
