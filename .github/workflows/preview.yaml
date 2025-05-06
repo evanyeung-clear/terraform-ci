@@ -1,0 +1,40 @@
+name: Okta Preview
+
+on:
+  pull_request:
+    branches: 
+      - main
+    paths: 
+      - preview/**
+
+  # push:
+  #   branches: 
+  #     - main
+  #   paths: 
+  #     - preview/**
+  #
+  # issue_comment:
+  #   types: [created]
+
+jobs:
+  plan:
+    if: github.event_name == 'pull_request'
+    steps:
+      - name: Run Terraform Plan
+        uses: ./.github/workflows/terraform-plan.yaml
+  
+  # apply:
+  #   if: >
+  #     github.event_name == 'issue_comment' && 
+  #     github.event.issue.pull_request != null && 
+  #     github.event.comment.body == '/terraform apply' && 
+  #     github.event.issue.state == 'open'
+  #   steps:
+  #     - name: 
+  #       uses: 
+  #
+  # merge:
+  #   if: github.event_name == 'push'
+  #   steps:
+  #     - name: 
+  #       uses:
