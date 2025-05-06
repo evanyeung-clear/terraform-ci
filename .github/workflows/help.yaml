@@ -26,8 +26,8 @@ jobs:
             Wait for a team member to review and approve the PR. Automated pre-checks should also pass.
 
             3. **Deploy changes**
-            Deploy changes live with  `/terraform apply` as a comment on this PR. 
-                > If anything goes wrong, rollback with `/deploy main`
+            Deploy changes live with  \`/terraform apply\` as a comment on this PR. 
+                > If anything goes wrong, rollback with \`/deploy main\`
 
             4. **Merge after successful apply**
             Once terraform apply succeeds and the status check passes, you can merge the PR to main.
