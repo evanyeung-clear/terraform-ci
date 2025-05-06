@@ -19,9 +19,7 @@ on:
 jobs:
   plan:
     if: github.event_name == 'pull_request'
-    steps:
-      - name: Run Terraform Plan
-        uses: ./.github/workflows/terraform-plan.yaml
+    uses: ./.github/workflows/terraform-plan.yaml
   
   # apply:
   #   if: >
