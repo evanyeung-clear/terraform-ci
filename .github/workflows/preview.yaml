@@ -7,14 +7,15 @@ on:
     paths: 
       - preview/**
 
+  issue_comment:
+    types: [created]
+    
   # push:
   #   branches: 
   #     - main
   #   paths: 
   #     - preview/**
   #
-  # issue_comment:
-  #   types: [created]
 
 jobs:
   plan:
