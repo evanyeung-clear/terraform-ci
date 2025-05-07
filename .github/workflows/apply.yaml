@@ -1,0 +1,55 @@
+name: Okta Production
+
+on:
+  issue_comment:
+    types: [created]
+
+jobs:
+  check:
+    if: >
+      github.event.issue.pull_request != null && 
+      github.event.comment.body == '/terraform apply' && 
+      github.event.issue.state == 'open'
+    runs-on: ubuntu-latest
+    outputs:
+      preview: ${{ steps.changed_files.outputs.preview }}
+      production: ${{ steps.changed_files.outputs.production }}
+    steps:
+      - name: Check for changes
+        id: changed_files
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { data: files } = await github.rest.pulls.listFiles({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.payload.issue.number
+            });
+
+            const preview = files.some(file => file.filename.startsWith('preview/'));
+            core.setOutput('preview', 'true');
+
+            const production = files.some(file => file.filename.startsWith('production/'));
+            core.setOutput('production', 'true');
+
+  preview:
+    needs: check
+    if: needs.check.outputs.preview == 'true'
+    uses: ./.github/workflows/shared/terraform-apply.yaml
+    with:
+      directory: preview
+    permissions:
+      pull-requests: write
+      contents: write
+      statuses: write
+
+  production:
+    needs: check
+    if: needs.check.outputs.production == 'true'
+    uses: ./.github/workflows/shared/terraform-apply.yaml
+    with:
+      directory: production
+    permissions:
+      pull-requests: write
+      contents: write
+      statuses: write
