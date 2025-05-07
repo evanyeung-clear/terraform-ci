@@ -2,12 +2,16 @@ name: Terraform
 
 on:
   workflow_call:
-  issue_comment:
-    types: [created]
+    inputs:
+      directory:
+        description: 'Directory to run Terraform in'
+        required: true
+        type: string
+  # issue_comment:
+  #   types: [created]
 
 jobs:
   lock: 
-    if: github.event.issue.pull_request != null && github.event.comment.body == '/terraform apply' && github.event.issue.state == 'open'
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write
@@ -30,6 +34,7 @@ jobs:
         id: lock
         with:
           mode: check
+          environment: ${{ inputs.directory }}
 
       # TODO: check if lock is for this branch, if so, allow
         
@@ -59,12 +64,9 @@ jobs:
       - name: Get deployment lock
         if: steps.lock.outputs.locked == 'false'
         uses: forevanyeung/lock@49bf04ed23cc9fd2decd1c5e02b7f6351daec85f
-        env:
-          ACTIONS_RUNNER_DEBUG: true
-          ACTIONS_STEP_DEBUG: true
-        # uses: github/lock@v2.3.1
         with:
           mode: lock
+          environment: ${{ inputs.directory }}
           link: ${{ github.event.comment.html_url }}
 
   terraform_apply:
@@ -135,7 +137,7 @@ jobs:
         with: 
           script: |
             var body = `
-            **Terraform apply** ran in \`10.98 seconds\`
+            **Terraform apply** (${{ inputs.directory }}) ran in \`10.98 seconds\`
             \`\`\`
             terraform apply --target=
             \`\`\`

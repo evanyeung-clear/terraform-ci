@@ -20,21 +20,27 @@ jobs:
   plan:
     if: github.event_name == 'pull_request'
     uses: ./.github/workflows/terraform-plan.yaml
+    with: 
+      directory: preview
     permissions:
       pull-requests: write
       statuses: write
       checks: write
   
-  # apply:
-  #   if: >
-  #     github.event_name == 'issue_comment' && 
-  #     github.event.issue.pull_request != null && 
-  #     github.event.comment.body == '/terraform apply' && 
-  #     github.event.issue.state == 'open'
-  #   steps:
-  #     - name: 
-  #       uses: 
-  #
+  apply:
+    if: >
+      github.event_name == 'issue_comment' && 
+      github.event.issue.pull_request != null && 
+      github.event.comment.body == '/terraform apply' && 
+      github.event.issue.state == 'open'
+    uses: ./.github/workflows/terraform-apply.yaml
+    with:
+      directory: preview
+    permissions:
+      pull-requests: write
+      contents: write
+      statuses: write
+
   # merge:
   #   if: github.event_name == 'push'
   #   steps:
