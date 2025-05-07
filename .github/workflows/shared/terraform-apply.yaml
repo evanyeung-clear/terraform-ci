@@ -28,6 +28,9 @@ jobs:
               comment_id: context.payload.comment.id,
               content: 'eyes'
             });
+    
+      # TODO: check if plan succeeded
+      # TODO: check if all status checks are passing + approval
 
       - name: Check deployment lock
         uses: github/lock@v2.3.1
