@@ -1,0 +1,77 @@
+name: Okta Production
+
+on:
+  pull_request:
+    branches: 
+      - main
+    paths: 
+      - production/**
+
+  issue_comment:
+    types: [created]
+    
+  # push:
+  #   branches: 
+  #     - main
+  #   paths: 
+  #     - production/**
+  #
+
+env: 
+  DIRECTORY: production
+
+jobs:
+  auto-approve:
+    if: github.event_name == 'pull_request'
+    uses: ./.github/workflows/shared/auto-approve.yaml
+    permissions:
+      contents: read
+      pull-requests: write
+
+  plan:
+    if: github.event_name == 'pull_request'
+    uses: ./.github/workflows/shared/terraform-plan.yaml
+    with: 
+      directory: ${{ env.DIRECTORY }}
+    permissions:
+      pull-requests: write
+      statuses: write
+      checks: write
+  
+  apply:
+    if: >
+      github.event_name == 'issue_comment' && 
+      github.event.issue.pull_request != null && 
+      github.event.comment.body == '/terraform apply' && 
+      github.event.issue.state == 'open'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check for changes in ${{ env.DIRECTORY }} directory
+        id: check_changes
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { data: files } = await github.rest.pulls.listFiles({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.payload.issue.number
+            });
+
+            const changes = files.some(file => file.filename.startsWith('${{ env.DIRECTORY }}/'));
+            core.setOutput('changes', changes);
+
+      - name: Run Apply Step
+        if: steps.check_changes.outputs.changes == 'true'
+        uses: ./.github/workflows/shared/terraform-apply.yaml
+        with:
+          directory: ${{ env.DIRECTORY }}
+        permissions:
+          pull-requests: write
+          contents: write
+          statuses: write
+
+  # merge:
+  #   if: github.event_name == 'push'
+  #   steps:
+  #     - name: 
+  #       uses:

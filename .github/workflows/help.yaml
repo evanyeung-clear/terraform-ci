@@ -1,4 +1,4 @@
-name: Comment Help
+name: Pull Request Help
 
 on:
   pull_request:
