@@ -34,6 +34,7 @@ jobs:
         id: lock
         with:
           mode: check
+          environment: ${{ inputs.directory }}
 
       # TODO: check if lock is for this branch, if so, allow
         
@@ -65,6 +66,7 @@ jobs:
         uses: forevanyeung/lock@49bf04ed23cc9fd2decd1c5e02b7f6351daec85f
         with:
           mode: lock
+          environment: ${{ inputs.directory }}
           link: ${{ github.event.comment.html_url }}
 
   terraform_apply:
@@ -135,7 +137,7 @@ jobs:
         with: 
           script: |
             var body = `
-            **Terraform apply** ran in \`10.98 seconds\`
+            **Terraform apply** (${{ inputs.directory }}) ran in \`10.98 seconds\`
             \`\`\`
             terraform apply --target=
             \`\`\`
