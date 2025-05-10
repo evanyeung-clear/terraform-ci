@@ -33,7 +33,7 @@ jobs:
           echo "terraform_time_elapsed=$((end - start))" >> $GITHUB_OUTPUT
           echo "terraform_cmd=terraform plan --target=" >> $GITHUB_OUTPUT
 
-      - name: Output Terraform Plan
+      - name: Comment Terraform Plan
         uses: actions/github-script@v7
         with: 
           script: |
