@@ -35,7 +35,7 @@ jobs:
   preview:
     needs: check
     if: needs.check.outputs.preview == 'true'
-    uses: ./.github/workflows/shared/terraform-apply.yaml
+    uses: ./.github/workflows/shared-terraform-apply.yaml
     with:
       directory: preview
     permissions:
@@ -46,7 +46,7 @@ jobs:
   production:
     needs: check
     if: needs.check.outputs.production == 'true'
-    uses: ./.github/workflows/shared/terraform-apply.yaml
+    uses: ./.github/workflows/shared-terraform-apply.yaml
     with:
       directory: production
     permissions:

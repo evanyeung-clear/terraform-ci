@@ -20,14 +20,14 @@ env:
 jobs:
   auto-approve:
     if: github.event_name == 'pull_request'
-    uses: ./.github/workflows/shared/auto-approve.yaml
+    uses: ./.github/workflows/shared-auto-approve.yaml
     permissions:
       contents: read
       pull-requests: write
 
   plan:
     if: github.event_name == 'pull_request'
-    uses: ./.github/workflows/shared/terraform-plan.yaml
+    uses: ./.github/workflows/shared-terraform-plan.yaml
     with: 
       directory: ${{ env.DIRECTORY }}
     permissions:
