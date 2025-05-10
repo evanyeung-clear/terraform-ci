@@ -14,15 +14,12 @@ on:
   #     - production/**
   #
 
-env: 
-  DIRECTORY: production
-
 jobs:
   plan:
     if: github.event_name == 'pull_request'
     uses: ./.github/workflows/shared-terraform-plan.yaml
     with: 
-      directory: ${{ env.DIRECTORY }}
+      directory: production
     permissions:
       pull-requests: write
       statuses: write
