@@ -11,6 +11,8 @@ jobs:
       github.event.comment.body == '/terraform apply' && 
       github.event.issue.state == 'open'
     runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
     outputs:
       preview: ${{ steps.changed_files.outputs.preview }}
       production: ${{ steps.changed_files.outputs.production }}
