@@ -1,30 +1,23 @@
-name: Okta Preview
+name: Okta Production
 
 on:
   pull_request:
     branches: 
       - main
     paths: 
-      - preview/**
+      - production/**
     
   # push:
   #   branches: 
   #     - main
   #   paths: 
-  #     - preview/**
+  #     - production/**
   #
 
 env: 
-  DIRECTORY: preview
+  DIRECTORY: production
 
 jobs:
-  auto-approve:
-    if: github.event_name == 'pull_request'
-    uses: ./.github/workflows/shared/auto-approve.yaml
-    permissions:
-      contents: read
-      pull-requests: write
-
   plan:
     if: github.event_name == 'pull_request'
     uses: ./.github/workflows/shared/terraform-plan.yaml

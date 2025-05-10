@@ -1,4 +1,4 @@
-name: Terraform
+name: Terraform Apply
 
 on:
   workflow_call:
@@ -28,6 +28,38 @@ jobs:
               comment_id: context.payload.comment.id,
               content: 'eyes'
             });
+    
+      - name: Check status checks passed # assume tf plan is a part of the status checks
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { data: combinedStatus } = await github.rest.repos.getCombinedStatusForRef({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref: context.payload.pull_request.head.sha
+            });
+
+            const requiredChecks = combinedStatus.statuses.filter(status => !['terraform-apply', 'another-check-to-ignore'].includes(status.context));
+            const allChecksPassed = requiredChecks.every(status => status.state === 'success');
+
+            if (!allChecksPassed) {
+              core.setFailed('Terraform apply cannot be run yet, not all required status checks have passed.');
+            }
+
+      - name: Check PR is approved
+        uses: actions/github-script@v7
+        with:
+          script: | 
+            const { data: reviews } = await github.rest.pulls.listReviews({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number
+            });
+
+            const approved = reviews.some(review => review.state === 'APPROVED');
+            if (!approved) {
+              core.setFailed('Terraform apply cannot be run yet, the PR is not approved.');
+            }
 
       - name: Check deployment lock
         uses: github/lock@v2.3.1
@@ -69,7 +101,7 @@ jobs:
           environment: ${{ inputs.directory }}
           link: ${{ github.event.comment.html_url }}
 
-  terraform_apply:
+  run:
     runs-on: ubuntu-latest
     needs: lock
     permissions:
@@ -192,3 +224,6 @@ jobs:
                 ? "Successful in 6s"
                 : "Failed after 5s"
             });
+
+  # TODO: re-apply main if deployment fails
+  # revert:
