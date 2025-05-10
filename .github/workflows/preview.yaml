@@ -14,9 +14,6 @@ on:
   #     - preview/**
   #
 
-env: 
-  DIRECTORY: preview
-
 jobs:
   auto-approve:
     if: github.event_name == 'pull_request'
