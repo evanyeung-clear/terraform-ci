@@ -40,10 +40,10 @@ jobs:
             });
 
             const preview = files.some(file => file.filename.startsWith('preview/'));
-            core.setOutput('preview', 'true');
+            preview ? core.setOutput('preview', 'true') : core.setOutput('preview', 'false');
 
             const production = files.some(file => file.filename.startsWith('production/'));
-            core.setOutput('production', 'true');
+            production ? core.setOutput('production', 'true') : core.setOutput('production', 'false');
 
   preview:
     needs: check

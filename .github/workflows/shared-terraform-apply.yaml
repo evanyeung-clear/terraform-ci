@@ -7,8 +7,6 @@ on:
         description: 'Directory to run Terraform in'
         required: true
         type: string
-  # issue_comment:
-  #   types: [created]
 
 jobs:
   lock: 
@@ -112,6 +110,9 @@ jobs:
     permissions:
       pull-requests: write
       statuses: write
+    defaults:
+      run:
+        working-directory: ${{ inputs.directory }}
 
     steps:
       - name: comment
@@ -147,7 +148,7 @@ jobs:
       - name: Checkout pull request
         uses: actions/checkout@v4
         with:
-          ref: refs/pull/${{ github.event.issue.number }}/head    
+          ref: refs/pull/${{ github.event.issue.number }}/head
   
       - name: Run Terraform Apply
         id: tf_apply
