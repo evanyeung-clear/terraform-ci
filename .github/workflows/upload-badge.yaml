@@ -1,0 +1,42 @@
+name: Upload Badge
+
+on:
+  workflow_dispatch:
+    inputs:
+      badge_command:
+        description: 'Command to generate the badge'
+        required: true
+
+jobs:
+  create-and-upload-badge:
+    runs-on: ubuntu-latest
+    outputs:
+      artifact-name: ${{ steps.upload.outputs.artifact-name }}
+
+    steps:
+      # Step 2: Set up Node.js
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      # Step 3: Install badge-maker
+      - name: Install badge-maker
+        run: npm install badge-maker
+
+      # Step 4: Create or replace the badge
+      - name: Create or replace badge
+        id: create_badge
+        run: |
+          # Create the badge using the command provided in the workflow dispatch input
+          badge_command="${{ github.event.inputs.badge_command }}"
+          echo "Running command: $badge_command"
+          eval badge "$badge_command" > badge.svg
+
+      - name: Upload Pages artifact
+        id: upload
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: badge.svg
+          # default artifact name is "github-pages" so you technically can omit this:
+          artifact_name: github-pages
