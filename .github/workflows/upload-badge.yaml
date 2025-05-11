@@ -22,7 +22,7 @@ jobs:
 
       # Step 3: Install badge-maker
       - name: Install badge-maker
-        run: npm install badge-maker
+        run: npm install -g badge-maker
 
       # Step 4: Create or replace the badge
       - name: Create or replace badge
