@@ -31,7 +31,7 @@ jobs:
           # Create the badge using the command provided in the workflow dispatch input
           badge_command="${{ github.event.inputs.badge_command }}"
           echo "Running command: $badge_command"
-          eval badge "$badge_command" > badge.svg
+          badge "$badge_command" > badge.svg
 
       - name: Upload Pages artifact
         id: upload
