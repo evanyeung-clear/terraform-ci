@@ -6,6 +6,10 @@ on:
       badge_command:
         description: 'Command to generate the badge'
         required: true
+      badge_file:
+        description: 'Name of the badge file'
+        required: true
+        default: 'badge.svg'
 
 jobs:
   create-badge:
@@ -33,8 +37,9 @@ jobs:
 
           # Create the badge using the command provided in the workflow dispatch input
           badge_command="${{ github.event.inputs.badge_command }}"
+          badge_file="${{ github.event.inputs.badge_file }}"
           echo "Running command: $badge_command"
-          badge $badge_command | tee badges/badge.svg
+          badge $badge_command | tee badges/$badge_file
 
       - name: Upload Pages artifact
         id: upload
