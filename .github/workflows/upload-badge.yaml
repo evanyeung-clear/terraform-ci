@@ -31,12 +31,10 @@ jobs:
           # Create the badge using the command provided in the workflow dispatch input
           badge_command="${{ github.event.inputs.badge_command }}"
           echo "Running command: $badge_command"
-          badge "$badge_command" > badge.svg
+          badge "$badge_command" > badges/badge.svg
 
       - name: Upload Pages artifact
         id: upload
         uses: actions/upload-pages-artifact@v3
         with:
-          path: badge.svg
-          # default artifact name is "github-pages" so you technically can omit this:
-          artifact_name: github-pages
+          path: badges
