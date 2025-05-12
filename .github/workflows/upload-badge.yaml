@@ -28,6 +28,9 @@ jobs:
       - name: Create or replace badge
         id: create_badge
         run: |
+          # Create the badges directory if it doesn't exist
+          mkdir -p badges
+
           # Create the badge using the command provided in the workflow dispatch input
           badge_command="${{ github.event.inputs.badge_command }}"
           echo "Running command: $badge_command"
