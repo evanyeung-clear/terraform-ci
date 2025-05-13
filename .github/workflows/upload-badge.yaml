@@ -31,6 +31,9 @@ on:
         description: 'Name of the file'
         required: true
 
+permissions:
+  contents: write
+
 jobs:
   create-badge:
     runs-on: ubuntu-latest
