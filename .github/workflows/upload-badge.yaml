@@ -32,12 +32,11 @@ on:
         required: true
 
 jobs:
-  default:
-    run:
-      working-directory: badges
-
   create-badge:
     runs-on: ubuntu-latest
+    default:
+      run:
+        working-directory: badges
 
     steps:
       - name: Checkout badges branch
