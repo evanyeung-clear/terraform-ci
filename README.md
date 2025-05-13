@@ -6,3 +6,5 @@
 
 ![Latest production deploy](https://img.shields.io/badge/production_branch-main-green?style=flat-square) 
 ![Latest preview deploy](https://img.shields.io/badge/preview_branch-evanyeung--clear--patch--6-red?style=flat-square)
+
+![](https://raw.githubusercontent.com/evanyeung-clear/terraform-ci/refs/heads/badges/badges/badge2.svg)
