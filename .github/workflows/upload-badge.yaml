@@ -3,67 +3,74 @@ name: Upload Badge
 on:
   workflow_dispatch:
     inputs:
-      badge_command:
-        description: 'Command to generate the badge'
+      label:
+        description: 'Badge label'
+        default: 'build'
+      message:
+        description: 'Badge message'
         required: true
-      badge_file:
-        description: 'Name of the badge file'
+      labelColor:
+        description: 'Label color'
+        default: '#555'
+      color:
+        description: 'Message color'
+        default: '#4c1'
+      logoBase64:
+        description: 'Base64 encoded logo'
+      style:
+        description: 'Badge style'
+        default: 'flat'
+        type: choice
+        options:
+          - plastic
+          - flat
+          - flat-square
+          - for-the-badge
+          - social
+      filename:
+        description: 'Name of the file'
         required: true
-        default: 'badge.svg'
 
 jobs:
+  default:
+    run:
+      working-directory: badges
+
   create-badge:
     runs-on: ubuntu-latest
-    outputs:
-      artifact-name: ${{ steps.upload.outputs.artifact-name }}
 
     steps:
-      # Step 2: Set up Node.js
+      - name: Checkout badges branch
+        uses: actions/checkout@v4
+        with:
+          ref: badges
+
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 22
 
-      # Step 3: Install badge-maker
       - name: Install badge-maker
-        run: npm install -g badge-maker
+        run: npm install badge-maker
 
       # Step 4: Create or replace the badge
-      - name: Create or replace badge
-        id: create_badge
+      - name: Create badge
         run: |
-          # Create the badges directory if it doesn't exist
-          mkdir -p badges
+            node -e "
+            const fs = require('fs');
+            const { makeBadge, ValidationError } = require('badge-maker')
 
-          # Create the badge using the command provided in the workflow dispatch input
-          badge_command="${{ github.event.inputs.badge_command }}"
-          badge_file="${{ github.event.inputs.badge_file }}"
-          echo "Running command: $badge_command"
-          badge $badge_command | tee badges/$badge_file
+            const badgeFile = '${{ github.event.inputs.filename }}';
+            
+            makeBadge({
+              label: '${{ github.event.inputs.label }}',
+              message: '${{ github.event.inputs.message }}',
+              color: '${{ github.event.inputs.color }}',
+              style: '${{ github.event.inputs.style }}'
+            })
+            .then((svg) => {
+              fs.writeFileSync(badgeFile, svg);
+            })
 
-      - name: Upload Pages artifact
-        id: upload
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: badges
-
-  upload-badge:
-    # Add a dependency to the build job
-    needs: create-badge
-
-    # Grant GITHUB_TOKEN the permissions required to make a Pages deployment
-    permissions:
-      pages: write      # to deploy to Pages
-      id-token: write   # to verify the deployment originates from an appropriate source
-
-    # Deploy to the github-pages environment
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-
-    # Specify runner + deployment step
-    runs-on: ubuntu-latest
-    steps:
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
+            console.log('Badge created successfully:', badgeFile);
+            "
