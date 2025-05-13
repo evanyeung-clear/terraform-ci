@@ -72,3 +72,11 @@ jobs:
             
             console.log('Badge created successfully:', badgeFile);
             "
+
+      # Step 5: Commit and push the badge
+      - name: Commit and push badge
+        run: |
+            git config --local user.name "github-actions"
+            git config --local user.email "action@github.com"
+            git add .
+            git diff-index --quiet HEAD || git commit -m "update badge ${{ github.event.inputs.filename }}" && git push
