@@ -34,7 +34,7 @@ on:
 jobs:
   create-badge:
     runs-on: ubuntu-latest
-    default:
+    defaults:
       run:
         working-directory: badges
 
