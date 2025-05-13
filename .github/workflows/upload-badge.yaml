@@ -60,16 +60,15 @@ jobs:
             const { makeBadge, ValidationError } = require('badge-maker')
 
             const badgeFile = '${{ github.event.inputs.filename }}';
-            
-            makeBadge({
+            const format = {
               label: '${{ github.event.inputs.label }}',
               message: '${{ github.event.inputs.message }}',
               color: '${{ github.event.inputs.color }}',
               style: '${{ github.event.inputs.style }}'
-            })
-            .then((svg) => {
-              fs.writeFileSync(badgeFile, svg);
-            })
+            }
 
+            const svg = makeBadge(format)
+            fs.writeFileSync(badgeFile, svg);
+            
             console.log('Badge created successfully:', badgeFile);
             "
