@@ -5,21 +5,17 @@ on:
     inputs:
       label:
         description: 'Badge label'
-        default: 'build'
       message:
         description: 'Badge message'
         required: true
       labelColor:
         description: 'Label color'
-        default: '#555'
       color:
         description: 'Message color'
-        default: '#4c1'
       logoBase64:
         description: 'Base64 encoded logo'
       style:
         description: 'Badge style'
-        default: 'flat'
         type: choice
         options:
           - plastic
@@ -63,11 +59,28 @@ jobs:
             const { makeBadge, ValidationError } = require('badge-maker')
 
             const badgeFile = '${{ github.event.inputs.filename }}';
-            const format = {
-              label: '${{ github.event.inputs.label }}',
+            var format = {
               message: '${{ github.event.inputs.message }}',
-              color: '${{ github.event.inputs.color }}',
-              style: '${{ github.event.inputs.style }}'
+            }
+
+            if ('${{ github.event.inputs.label }}') {
+              format.label = '${{ github.event.inputs.label }}'
+            }
+
+            if ('${{ github.event.inputs.labelColor }}') {
+              format.labelColor = '${{ github.event.inputs.labelColor }}'
+            }
+
+            if ('${{ github.event.inputs.color }}') {
+              format.color = '${{ github.event.inputs.color }}'
+            }
+
+            if ('${{ github.event.inputs.logoBase64 }}') {
+              format.logoBase64 = '${{ github.event.inputs.logoBase64 }}'
+            }
+
+            if ('${{ github.event.inputs.style }}') {
+              format.style = '${{ github.event.inputs.style }}'
             }
 
             const svg = makeBadge(format)
