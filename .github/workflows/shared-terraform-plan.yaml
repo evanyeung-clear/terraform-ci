@@ -13,8 +13,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write
-      statuses: write
-      checks: write
 
     steps:
       - name: Checkout pull request
@@ -81,3 +79,14 @@ jobs:
               repo: context.repo.repo,
               body: body
             })
+    
+  test:
+    if: ${{ !always() }}
+    runs-on: ubuntu-latest
+    needs: run
+    steps:
+      - name: Check Terraform Plan Output
+        run: |
+          echo "Checking Terraform Plan Output..."
+          echo "Terraform plan ran in ${{ needs.run.outputs.terraform_time_elapsed }} seconds."
+          echo "Terraform command: ${{ needs.run.outputs.terraform_cmd }}"
