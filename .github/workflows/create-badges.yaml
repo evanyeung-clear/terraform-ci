@@ -20,7 +20,7 @@ permissions:
 jobs:
   sailpoint:
     if: ${{ github.event.inputs.sailpoint != '' }}
-    uses: ./.github/workflows/upload-badge.yamle
+    uses: ./.github/workflows/upload-badge.yaml
     with:
       label: Sailpoint coverage
       message: ${{ github.event.inputs.sailpoint }}
