@@ -1,6 +1,31 @@
 name: Upload Badge
 
 on:
+  workflow_call:
+    inputs:
+      label:
+        description: 'Badge label'
+      message:
+        description: 'Badge message'
+        required: true
+      labelColor:
+        description: 'Label color'
+      color:
+        description: 'Message color'
+      logoBase64:
+        description: 'Base64 encoded logo'
+      style:
+        description: 'Badge style'
+        type: choice
+        options:
+          - plastic
+          - flat
+          - flat-square
+          - for-the-badge
+          - social
+      filename:
+        description: 'Name of the file'
+        required: true
   workflow_dispatch:
     inputs:
       label:
