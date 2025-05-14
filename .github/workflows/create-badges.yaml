@@ -20,6 +20,8 @@ permissions:
 jobs:
   sailpoint:
     if: ${{ github.event.inputs.sailpoint != '' }}
+    concurrency:
+      group: badges
     uses: ./.github/workflows/upload-badge.yaml
     with:
       label: Sailpoint coverage
@@ -31,6 +33,8 @@ jobs:
 
   terraform:
     if: ${{ github.event.inputs.terraform != '' }}
+    concurrency:
+      group: badges
     uses: ./.github/workflows/upload-badge.yaml
     with:
       label: Terraform coverage
@@ -42,6 +46,8 @@ jobs:
 
   owner:
     if: ${{ github.event.inputs.owner != '' }}
+    concurrency:
+      group: badges
     uses: ./.github/workflows/upload-badge.yaml
     with:
       label: Owner coverage
@@ -52,6 +58,8 @@ jobs:
 
   latest-production-branch:
     if: ${{ github.event.inputs.production-branch != '' }}
+    concurrency:
+      group: badges
     uses: ./.github/workflows/upload-badge.yaml
     with:
       label: production branch
@@ -62,6 +70,8 @@ jobs:
 
   latest-preview-branch:
     if: ${{ github.event.inputs.preview-branch != '' }}
+    concurrency:
+      group: badges
     uses: ./.github/workflows/upload-badge.yaml
     with:
       label: preview branch
