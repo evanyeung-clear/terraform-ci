@@ -1,0 +1,71 @@
+name: Create Badges
+
+on:
+  workflow_dispatch:
+    inputs:
+      sailpoint:
+        description: Sailpoint coverage badge
+      terraform:
+        description: Terraform coverage badge
+      owner:
+        description: Owner coverage badge
+      production-branch:
+        description: Latest production branch
+      preview-branch:
+        description: Latest preview branch
+
+permissions:
+  contents: write
+
+jobs:
+  sailpoint:
+    if: ${{ github.event.inputs.sailpoint != '' }}
+    uses: ./.github/workflows/upload-badge.yamle
+    with:
+      label: Sailpoint coverage
+      message: ${{ github.event.inputs.sailpoint }}
+      color: green
+      logoBase64: data:image/svg+xml;base64,PHN2ZyB2ZXJzaW9uPSIxLjIiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgdmlld0JveD0iMCAwIDE1MzIgMTQ4OSIgd2lkdGg9IjE1MzIiIGhlaWdodD0iMTQ4OSI%2BCgk8dGl0bGU%2BU2FpbFBvaW50LUVTR1JlcG9ydC0yMDI0MTAyOS0xNyAoMik8L3RpdGxlPgoJPHN0eWxlPgoJCS5zMCB7IGZpbGw6ICNmZmZmZmYgfSAKCTwvc3R5bGU%2BCgk8cGF0aCBpZD0iUGF0aCA3IiBmaWxsLXJ1bGU9ImV2ZW5vZGQiIGNsYXNzPSJzMCIgZD0ibTEwNDguMiAxMDgwLjRoLTEwNDcuMmw4NjYtMTA4MC40IDE0NSA4NjIuNXptLTExMy4xLTEwMDcuOWw1OTYuNCAxMDA3LjloLTQyOC43bC05MC45LTU0N3ptMTIyLjggMTA1OS42bDYwLjkgMzU2LjYtMTAxNS45LTM1Ni42em01NC42IDBoNDAxLjJsLTM0NC42IDM0MC42eiIvPgo8L3N2Zz4=
+      style: flat-square
+      filename: sailpoint-cov.svg
+
+  terraform:
+    if: ${{ github.event.inputs.terraform != '' }}
+    uses: ./.github/workflows/upload-badge.yaml
+    with:
+      label: Terraform coverage
+      message: ${{ github.event.inputs.terraform }}
+      color: green
+      logoBase64: yByb2xlPSJpbWciIHZpZXdCb3g9IjAgMCAyNCAyNCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48dGl0bGU+VGVycmFmb3JtPC90aXRsZT48cGF0aCBmaWxsPSIjZmZmZmZmIiBkPSJNMS40NCAwdjcuNTc1bDYuNTYxIDMuNzlWMy43ODd6bTIxLjEyIDQuMjI3bC02LjU2MSAzLjc5MXY3LjU3NGw2LjU2LTMuNzg3ek04LjcyIDQuMjN2Ny41NzVsNi41NjEgMy43ODdWOC4wMTh6bTAgOC40MDV2Ny41NzVMMTUuMjggMjR2LTcuNTc4eiIvPjwvc3ZnPg==
+      style: flat-square
+      filename: terraform-cov.svg
+
+  owner:
+    if: ${{ github.event.inputs.owner != '' }}
+    uses: ./.github/workflows/upload-badge.yaml
+    with:
+      label: Owner coverage
+      message: ${{ github.event.inputs.owner }}
+      color: green
+      style: flat-square
+      filename: owner-cov.svg
+
+  latest-production-branch:
+    if: ${{ github.event.inputs.production-branch != '' }}
+    uses: ./.github/workflows/upload-badge.yaml
+    with:
+      label: production branch
+      message: ${{ github.event.inputs.production-branch }}
+      color: green
+      style: flat-square
+      filename: latest-production-branch.svg
+
+  latest-preview-branch:
+    if: ${{ github.event.inputs.preview-branch != '' }}
+    uses: ./.github/workflows/upload-badge.yaml
+    with:
+      label: preview branch
+      message: ${{ github.event.inputs.preview-branch }}
+      color: red
+      style: flat-square
+      filename: latest-preview-branch.svg

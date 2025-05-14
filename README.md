@@ -1,10 +1,8 @@
 # terraform-ci
 
-![Sailpoint coverage](https://img.shields.io/badge/90%25-green?style=flat-square&logo=data:image/svg+xml;base64,PHN2ZyB2ZXJzaW9uPSIxLjIiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgdmlld0JveD0iMCAwIDE1MzIgMTQ4OSIgd2lkdGg9IjE1MzIiIGhlaWdodD0iMTQ4OSI%2BCgk8dGl0bGU%2BU2FpbFBvaW50LUVTR1JlcG9ydC0yMDI0MTAyOS0xNyAoMik8L3RpdGxlPgoJPHN0eWxlPgoJCS5zMCB7IGZpbGw6ICNmZmZmZmYgfSAKCTwvc3R5bGU%2BCgk8cGF0aCBpZD0iUGF0aCA3IiBmaWxsLXJ1bGU9ImV2ZW5vZGQiIGNsYXNzPSJzMCIgZD0ibTEwNDguMiAxMDgwLjRoLTEwNDcuMmw4NjYtMTA4MC40IDE0NSA4NjIuNXptLTExMy4xLTEwMDcuOWw1OTYuNCAxMDA3LjloLTQyOC43bC05MC45LTU0N3ptMTIyLjggMTA1OS42bDYwLjkgMzU2LjYtMTAxNS45LTM1Ni42em01NC42IDBoNDAxLjJsLTM0NC42IDM0MC42eiIvPgo8L3N2Zz4%3D&&label=Sailpoint%20coverage)
-![Terraform coverage](https://img.shields.io/badge/90%25-green?style=flat-square&logo=data:image/svg+xml;base64,PHN2ZyByb2xlPSJpbWciIHZpZXdCb3g9IjAgMCAyNCAyNCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48dGl0bGU+VGVycmFmb3JtPC90aXRsZT48cGF0aCBmaWxsPSIjZmZmZmZmIiBkPSJNMS40NCAwdjcuNTc1bDYuNTYxIDMuNzlWMy43ODd6bTIxLjEyIDQuMjI3bC02LjU2MSAzLjc5MXY3LjU3NGw2LjU2LTMuNzg3ek04LjcyIDQuMjN2Ny41NzVsNi41NjEgMy43ODdWOC4wMTh6bTAgOC40MDV2Ny41NzVMMTUuMjggMjR2LTcuNTc4eiIvPjwvc3ZnPg==&label=Terraform%20coverage)
-![Owner Coverage](https://img.shields.io/badge/90%25-green?style=flat-square&label=Owner%20coverage)
+![Sailpoint coverage](https://raw.githubusercontent.com/evanyeung-clear/terraform-ci/refs/heads/badges/badges/sailpoint-cov.svg)
+![Terraform coverage](https://raw.githubusercontent.com/evanyeung-clear/terraform-ci/refs/heads/badges/badges/terraform-cov.svg)
+![Owner Coverage](https://raw.githubusercontent.com/evanyeung-clear/terraform-ci/refs/heads/badges/badges/owner-cov.svg)
 
-![Latest production deploy](https://img.shields.io/badge/production_branch-main-green?style=flat-square) 
-![Latest preview deploy](https://img.shields.io/badge/preview_branch-evanyeung--clear--patch--6-red?style=flat-square)
-
-![](https://raw.githubusercontent.com/evanyeung-clear/terraform-ci/refs/heads/badges/badges/badge2.svg)
+![Latest production deploy](https://raw.githubusercontent.com/evanyeung-clear/terraform-ci/refs/heads/badges/badges/latest-production-branch.svg) 
+![Latest preview deploy](https://raw.githubusercontent.com/evanyeung-clear/terraform-ci/refs/heads/badges/badges/latest-preview-branch.svg)
