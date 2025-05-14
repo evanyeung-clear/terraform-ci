@@ -4,19 +4,26 @@ on:
   workflow_call:
     inputs:
       label:
+        type: string
         description: 'Badge label'
       message:
+        type: string
         description: 'Badge message'
         required: true
       labelColor:
+        type: string
         description: 'Label color'
       color:
+        type: string
         description: 'Message color'
       logoBase64:
+        type: string
         description: 'Base64 encoded logo'
       style:
+        type: string
         description: 'Badge style'
       filename:
+        type: string
         description: 'Name of the file'
         required: true
   workflow_dispatch:
