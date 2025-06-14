@@ -7,38 +7,55 @@ on:
         description: 'Directory to run Terraform in'
         required: true
         type: string
+      terraform_version:
+        description: 'Terraform version to use'
+        required: false
+        type: string
 
 jobs:
   run:
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write
+    defaults:
+      run:
+        working-directory: ${{ inputs.directory }}
 
     steps:
       - name: Checkout pull request
         uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ inputs.terraform_version != '' && inputs.terraform_version || null }}
+
+      - name: Initialize Terraform
+        run: |
+          terraform init -input=false
+          terraform fmt -check
+          terraform validate -no-color
   
       - name: Run Terraform Plan
         id: terraform_plan
         run: |
-          echo "Running Terraform Plan..."
+          cmd="terraform plan -no-color -input=false"
 
           start=$(date +%s)
-            # Simulate Terraform Plan (replace with real command)
-            sleep 1
+          $cmd
           end=$(date +%s)
 
-          echo "terraform_time_elapsed=$((end - start))" >> $GITHUB_OUTPUT
-          echo "terraform_cmd=terraform plan --target=" >> $GITHUB_OUTPUT
+          echo "duration=$((end - start))" >> $GITHUB_OUTPUT
+          echo "cmd=$cmd" >> $GITHUB_OUTPUT
 
       - name: Comment Terraform Plan
         uses: actions/github-script@v7
         with: 
           script: |
             var body = `
-            **Terraform plan** (${{ inputs.directory }}) ran in ${{ steps.terraform_plan.outputs.terraform_time_elapsed }} seconds.
+            **Terraform plan** (${{ inputs.directory }}) ran in ${{ steps.terraform_plan.outputs.duration }} seconds.
             \`\`\`
-            ${{ steps.terraform_plan.outputs.terraform_cmd }}
+            ${{ steps.terraform_plan.outputs.cmd }}
             \`\`\`
 
             #### Diff of changes
@@ -51,24 +68,7 @@ jobs:
             <summary>Plan: 1 to add, 1 to change, 1 to destroy.</summary>
 
             \`\`\`
-            # okta_group_rule.staples_organization will be updated in-place
-            ~ resource "okta_group_rule" "staples_organization" {
-                ~ expression_value  = "user.organization==\"Staples\" OR user.organization==\"STAPLES\"" -> "user.organization==\"Staples\""
-                  id                = "0prpocj0f16I70MKH297"
-                  name              = "Org - Staples"
-                  # (4 unchanged attributes hidden)
-              }
-
-            # okta_policy_rule_signon.staples_deny must be replaced
-            -/+ resource "okta_policy_rule_signon" "staples_deny" {
-                - behaviors           = [] -> null
-                ~ id                  = "0prpogbwwa7uFIwgE297" -> (known after apply)
-                - mfa_lifetime        = 0 -> null
-                ~ name                = "Deny Staples Associate" -> "Deny Staples Associates" # forces replacement
-                ~ primary_factor      = "PASSWORD_IDP" -> (known after apply)
-                - users_excluded      = [] -> null
-                  # (14 unchanged attributes hidden)
-              }
+            ${{ steps.terraform_plan.outputs.stdout }}
             \`\`\`
             </details>
             `
@@ -80,13 +80,13 @@ jobs:
               body: body
             })
     
-  test:
-    if: ${{ !always() }}
-    runs-on: ubuntu-latest
-    needs: run
-    steps:
-      - name: Check Terraform Plan Output
-        run: |
-          echo "Checking Terraform Plan Output..."
-          echo "Terraform plan ran in ${{ needs.run.outputs.terraform_time_elapsed }} seconds."
-          echo "Terraform command: ${{ needs.run.outputs.terraform_cmd }}"
+  # test:
+  #   if: ${{ !always() }}
+  #   runs-on: ubuntu-latest
+  #   needs: run
+  #   steps:
+  #     - name: Check Terraform Plan Output
+  #       run: |
+  #         echo "Checking Terraform Plan Output..."
+  #         echo "Terraform plan ran in ${{ needs.run.outputs.terraform_time_elapsed }} seconds."
+  #         echo "Terraform command: ${{ needs.run.outputs.terraform_cmd }}"
