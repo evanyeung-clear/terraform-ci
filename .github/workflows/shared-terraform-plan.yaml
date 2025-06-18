@@ -63,19 +63,27 @@ jobs:
         run: |
           # Filter lines starting with "  # " and prepend diff-specific symbols based on specific keywords.
           # https://github.com/OP5dev/TF-via-PR
-          grep '^  # ' tf.console.txt | sed \
-            -e 's/^  # \(.* be created\)/+ \1/' \
-            -e 's/^  # \(.* be destroyed\)/- \1/' \
-            -e 's/^  # \(.* be updated\|.* be replaced\)/! \1/' \
-            -e 's/^  # \(.* be read\)/~ \1/' \
-            -e 's/^  # \(.*\)/# \1/')" > tf.diff.txt || true
-          $(awk '/^(Error:|Plan:|Apply complete!|No changes.|Success)/ {line=$0} END {if (line) print line; else print "View output."}' tf.console.txt) > tf.summary.txt
+          grep '^  # ' tf.console.txt 
+          # | sed \
+          #   -e 's/^  # \(.* be created\)/+ \1/' \
+          #   -e 's/^  # \(.* be destroyed\)/- \1/' \
+          #   -e 's/^  # \(.* be updated\|.* be replaced\)/! \1/' \
+          #   -e 's/^  # \(.* be read\)/~ \1/' \
+          #   -e 's/^  # \(.*\)/# \1/')" > tf.diff.txt || true
+          # $(awk '/^(Error:|Plan:|Apply complete!|No changes.|Success)/ {line=$0} END {if (line) print line; else print "View output."}' tf.console.txt) > tf.summary.txt
 
       - name: Comment Terraform Plan
         uses: actions/github-script@v7
         with: 
           script: |
+            const fs = require('fs');
             const runUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            
+            // Read files directly
+            const diff = fs.readFileSync('${{ inputs.directory }}/tf.diff.txt', 'utf8');
+            const summary = fs.readFileSync('${{ inputs.directory }}/tf.summary.txt', 'utf8');
+            const fullPlan = fs.readFileSync('${{ inputs.directory }}/tf.console.txt', 'utf8');
+            
             var body = `
             **Terraform plan** (${{ inputs.directory }}) ran in [${{ steps.plan.outputs.duration }} seconds](${runUrl}).
             \`\`\`
@@ -84,14 +92,14 @@ jobs:
 
             #### Diff of changes
             \`\`\`diff
-            ${{ steps.diff.outputs.stdout}}
+            ${diff}
             \`\`\`
 
             <details>
-            <summary>${{ steps.diff.outputs.plan_summary }}</summary>
+            <summary>${summary}</summary>
 
             \`\`\`
-            ${{ steps.plan.outputs.stdout }}
+            ${fullPlan}
             \`\`\`
             </details>
             `
