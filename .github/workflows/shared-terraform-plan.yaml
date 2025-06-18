@@ -47,7 +47,7 @@ jobs:
           terraform validate -no-color
   
       - name: Run Terraform Plan
-        id: terraform_plan
+        id: plan
         run: |
           cmd="terraform plan -no-color -input=false"
 
@@ -58,16 +58,18 @@ jobs:
           echo "duration=$((end - start))" >> $GITHUB_OUTPUT
           echo "cmd=$cmd" >> $GITHUB_OUTPUT
 
-      - id: diff
+      - name: Format Terraform Plan Diff
+        id: diff
         run: |
           # Filter lines starting with "  # " and prepend diff-specific symbols based on specific keywords.
           # https://github.com/OP5dev/TF-via-PR
-          echo "stdout=$(grep '^  # ' <<< "${{ steps.terraform_plan.outputs.stdout }}" | sed \
+          echo "stdout=$(grep '^  # ' <<< "${{ steps.plan.outputs.stdout }}" | sed \
             -e 's/^  # \(.* be created\)/+ \1/' \
             -e 's/^  # \(.* be destroyed\)/- \1/' \
             -e 's/^  # \(.* be updated\|.* be replaced\)/! \1/' \
             -e 's/^  # \(.* be read\)/~ \1/' \
             -e 's/^  # \(.*\)/# \1/')" >> $GITHUB_OUTPUT || true
+          echo "plan_summary=$(grep 'Plan: ' <<< "${{ steps.plan.outputs.stdout }}")" >> $GITHUB_OUTPUT 
 
       - name: Comment Terraform Plan
         uses: actions/github-script@v7
@@ -75,9 +77,9 @@ jobs:
           script: |
             const runUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
             var body = `
-            **Terraform plan** (${{ inputs.directory }}) ran in [${{ steps.terraform_plan.outputs.duration }} seconds](runUrl).
+            **Terraform plan** (${{ inputs.directory }}) ran in [${{ steps.plan.outputs.duration }} seconds](${runUrl}).
             \`\`\`
-            ${{ steps.terraform_plan.outputs.cmd }}
+            ${{ steps.plan.outputs.cmd }}
             \`\`\`
 
             #### Diff of changes
@@ -86,10 +88,10 @@ jobs:
             \`\`\`
 
             <details>
-            <summary>Plan: 1 to add, 1 to change, 1 to destroy.</summary>
+            <summary>${{ steps.diff.outputs.plan_summary }}</summary>
 
             \`\`\`
-            ${{ steps.terraform_plan.outputs.stdout }}
+            ${{ steps.plan.outputs.stdout }}
             \`\`\`
             </details>
             `
