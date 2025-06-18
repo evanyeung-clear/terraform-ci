@@ -40,7 +40,9 @@ jobs:
 
       - name: Initialize Terraform
         run: |
-          terraform init -input=false
+          terraform init -input=false \
+            -backend-config="organization=${{ secrets.TF_REMOTE_ORGANIZATION }}" \
+            -backend-config="workspaces.name=${{ secrets.TF_REMOTE_NAME }}" \
           terraform fmt -check
           terraform validate -no-color
   
