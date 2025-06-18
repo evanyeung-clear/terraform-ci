@@ -21,7 +21,7 @@ jobs:
       run:
         working-directory: ${{ inputs.directory }}
     env:
-      TF_TOKEN: ${{ secrets.TF_TOKEN }}
+      TF_TOKEN_APP_TERRAFORM_IO: ${{ secrets.TF_TOKEN_APP_TERRAFORM_IO }}
       OKTA_ORG_NAME: ${{ secrets.OKTA_ORG_NAME }} 
       OKTA_BASE_URL: ${{ secrets.OKTA_BASE_URL }} 
       OKTA_API_CLIENT_ID: ${{ secrets.OKTA_API_CLIENT_ID }} 
@@ -42,7 +42,7 @@ jobs:
         run: |
           terraform init -input=false \
             -backend-config="organization=${{ secrets.TF_REMOTE_ORGANIZATION }}" \
-            -backend-config="workspaces.name=${{ secrets.TF_REMOTE_NAME }}" \
+            -backend-config="workspaces.name=${{ secrets.TF_REMOTE_NAME }}" 
           terraform fmt -check
           terraform validate -no-color
   
