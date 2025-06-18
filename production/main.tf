@@ -1,6 +1,6 @@
 terraform {
   required_version = ">= 1.8.2"
-  backend "remote" {}
+  cloud {}
 
   required_providers {
     okta = {
