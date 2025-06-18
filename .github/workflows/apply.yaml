@@ -1,4 +1,4 @@
-name: Okta Production
+name: Terraform Apply
 
 on:
   issue_comment:
