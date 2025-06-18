@@ -76,19 +76,21 @@ jobs:
         with: 
           script: |
             const fs = require('fs');
+            // Helper function to safely read files with a default value
+            function safeReadFile(filePath, defaultContent = '') {
+              try {
+                return fs.readFileSync(filePath, 'utf8');
+              } catch (error) {
+                console.log(`Warning: Could not read file ${filePath}: ${error.message}`);
+                return defaultContent;
+              }
+            }
+
             const runUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
-            
-            // Read files directly
-            const diff = try {
-              fs.readFileSync('${{ inputs.directory }}/tf.diff.txt', 'utf8');
-            } catch { return '' }
-            const summary = try {
-              fs.readFileSync('${{ inputs.directory }}/tf.summary.txt', 'utf8');
-            } catch { return '' }
-            const fullPlan = try {
-              fs.readFileSync('${{ inputs.directory }}/tf.console.txt', 'utf8');
-            } catch { return '' }
-            
+            const diff = safeReadFile('${{ inputs.directory }}/tf.diff.txt', 'No changes detected');
+            const summary = safeReadFile('${{ inputs.directory }}/tf.summary.txt', 'View output for details');
+            const fullPlan = safeReadFile('${{ inputs.directory }}/tf.console.txt', 'No plan output available');
+
             var body = `
             **Terraform plan** (${{ inputs.directory }}) ran in [${{ steps.plan.outputs.duration }} seconds](${runUrl}).
             \`\`\`
