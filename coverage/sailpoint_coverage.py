@@ -5,6 +5,7 @@ from sailpoint.v2025.api.entitlements_api import EntitlementsApi
 
 configuration = Configuration()
 configuration.experimental = True
+configuration.suppress_experimental_warnings = True
 
 with ApiClient(configuration) as api_client:
     # Get all groups from Okta source
