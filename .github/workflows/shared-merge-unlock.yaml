@@ -31,6 +31,7 @@ jobs:
 
             if (!match) {
               // do not unlock
+              echo `Lock link does not match expected format: ${url}`
               return
             }
 
@@ -42,6 +43,9 @@ jobs:
               run_id: run_id 
             });
             const currentBranch = context.ref.replace('refs/head/', '')
+
+            echo `Current branch: ${currentBranch}`
+            echo `Lock branch: ${workflowRun.head_branch}`
 
             if (workflowRun.head_branch == currentBranch) {
               return 'unlock'
