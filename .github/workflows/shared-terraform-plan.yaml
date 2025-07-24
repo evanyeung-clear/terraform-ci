@@ -13,23 +13,13 @@ on:
         type: string
 
 jobs:
-  run:
+  plan:
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write
     defaults:
       run:
         working-directory: ${{ inputs.directory }}
-    env:
-      TF_TOKEN_APP_TERRAFORM_IO: ${{ secrets.TF_TOKEN_APP_TERRAFORM_IO }}
-      TF_CLOUD_ORGANIZATION: ${{ secrets.TF_CLOUD_ORGANIZATION }}
-      TF_WORKSPACE: ${{ secrets.TF_WORKSPACE }}
-      OKTA_ORG_NAME: ${{ secrets.OKTA_ORG_NAME }} 
-      OKTA_BASE_URL: ${{ secrets.OKTA_BASE_URL }} 
-      OKTA_API_CLIENT_ID: ${{ secrets.OKTA_API_CLIENT_ID }} 
-      OKTA_API_PRIVATE_KEY_ID: ${{ secrets.OKTA_API_PRIVATE_KEY_ID }} 
-      OKTA_API_PRIVATE_KEY: ${{ secrets.OKTA_API_PRIVATE_KEY }} 
-      OKTA_API_SCOPES: ${{ secrets.OKTA_API_SCOPES }} 
 
     steps:
       - name: Checkout pull request
@@ -41,6 +31,16 @@ jobs:
           terraform_version: ${{ inputs.terraform_version != '' && inputs.terraform_version || null }}
 
       - name: Initialize Terraform
+        env:
+          TF_TOKEN_APP_TERRAFORM_IO: ${{ secrets.TF_TOKEN_APP_TERRAFORM_IO }}
+          TF_CLOUD_ORGANIZATION: ${{ secrets.TF_CLOUD_ORGANIZATION }}
+          TF_WORKSPACE: ${{ secrets.TF_WORKSPACE }}
+          OKTA_ORG_NAME: ${{ secrets.OKTA_ORG_NAME }} 
+          OKTA_BASE_URL: ${{ secrets.OKTA_BASE_URL }} 
+          OKTA_API_CLIENT_ID: ${{ secrets.OKTA_API_CLIENT_ID }} 
+          OKTA_API_PRIVATE_KEY_ID: ${{ secrets.OKTA_API_PRIVATE_KEY_ID }} 
+          OKTA_API_PRIVATE_KEY: ${{ secrets.OKTA_API_PRIVATE_KEY }} 
+          OKTA_API_SCOPES: ${{ secrets.OKTA_API_SCOPES }} 
         run: |
           terraform init -input=false
           terraform fmt -check
@@ -48,6 +48,16 @@ jobs:
   
       - name: Run Terraform Plan
         id: plan
+        env:
+          TF_TOKEN_APP_TERRAFORM_IO: ${{ secrets.TF_TOKEN_APP_TERRAFORM_IO }}
+          TF_CLOUD_ORGANIZATION: ${{ secrets.TF_CLOUD_ORGANIZATION }}
+          TF_WORKSPACE: ${{ secrets.TF_WORKSPACE }}
+          OKTA_ORG_NAME: ${{ secrets.OKTA_ORG_NAME }} 
+          OKTA_BASE_URL: ${{ secrets.OKTA_BASE_URL }} 
+          OKTA_API_CLIENT_ID: ${{ secrets.OKTA_API_CLIENT_ID }} 
+          OKTA_API_PRIVATE_KEY_ID: ${{ secrets.OKTA_API_PRIVATE_KEY_ID }} 
+          OKTA_API_PRIVATE_KEY: ${{ secrets.OKTA_API_PRIVATE_KEY }} 
+          OKTA_API_SCOPES: ${{ secrets.OKTA_API_SCOPES }} 
         run: |
           cmd="terraform plan -no-color -input=false"
 
