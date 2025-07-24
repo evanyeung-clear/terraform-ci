@@ -112,7 +112,7 @@ jobs:
 
             // Find previous plan comment and mark as out of date
             const planCommentTag = `**Terraform plan** (${{ inputs.directory }})`;
-            const outOfDateNotice = '**Note: This plan is out of date. A new plan has been performed.**';
+            const outOfDateNotice = 'This plan is out of date. A new plan has been performed.';
             const comments = await github.rest.issues.listComments({
               issue_number: context.issue.number,
               owner: context.repo.owner,
@@ -127,7 +127,7 @@ jobs:
                   comment_id: comment.id,
                   owner: context.repo.owner,
                   repo: context.repo.repo,
-                  body: '<details><summary>' + outOfDateNotice + '</summary>\n' + quotedBody + '\n</details>'
+                  body: '<details><summary>' + outOfDateNotice + '</summary>\n\n' + quotedBody + '\n</details>'
                 });
               }
             }
