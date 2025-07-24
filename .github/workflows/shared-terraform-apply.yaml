@@ -210,8 +210,8 @@ jobs:
             github.rest.repos.createCommitStatus({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              sha: "${{ steps.pr.outputs.head_sha }}",
-              state: "success",
+              sha: "${{ needs.lock.outputs.head_sha }}",
+              state: state,
               target_url: runUrl, 
               context: "terraform-apply",
               description: state === "success"
