@@ -92,7 +92,7 @@ jobs:
 
       - name: Comment Terraform Plan
         uses: actions/github-script@v7
-        with: 
+        with:
           script: |
             const fs = require('fs');
             // Helper function to safely read files with a default value
@@ -109,6 +109,28 @@ jobs:
             const diff = safeReadFile('${{ inputs.directory }}/tf.diff.txt', 'No changes detected');
             const summary = safeReadFile('${{ inputs.directory }}/tf.summary.txt', 'View output for details');
             const cleanPlan = safeReadFile('${{ inputs.directory }}/tf.console.stripped.txt', 'No plan output available');
+
+            // Find previous plan comment and mark as out of date
+            const planCommentTag = `**Terraform plan** (${{ inputs.directory }})`;
+            const outOfDateNotice = '**Note: This plan is out of date. A new plan has been performed.**';
+            const comments = await github.rest.issues.listComments({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              per_page: 100
+            });
+            for (const comment of comments.data) {
+              if (comment.body && comment.body.includes(planCommentTag) && !comment.body.includes(outOfDateNotice)) {
+                // Prepend '> ' to each line of comment.body for quoting
+                const quotedBody = comment.body.split('\n').map(line => '> ' + line).join('\n');
+                await github.rest.issues.updateComment({
+                  comment_id: comment.id,
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  body: '<details><summary>' + outOfDateNotice + '</summary>\n' + quotedBody + '\n</details>'
+                });
+              }
+            }
 
             var body = `
             **Terraform plan** (${{ inputs.directory }}) ran in [${{ steps.plan.outputs.duration }} seconds](${runUrl}).
