@@ -99,11 +99,12 @@ jobs:
           
       - name: Get deployment lock
         if: steps.lock.outputs.locked == 'false'
-        uses: forevanyeung/lock@49bf04ed23cc9fd2decd1c5e02b7f6351daec85f
+        uses: forevanyeung/lock@3c4364c489c3d4dbafacf8fe4746340e08e9e7f2
         with:
           mode: lock
           environment: ${{ inputs.directory }}
           link: ${{ github.event.comment.html_url }}
+          branch: ${{ github.head_ref }}
 
   apply:
     runs-on: ubuntu-latest
