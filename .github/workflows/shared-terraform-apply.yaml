@@ -158,6 +158,11 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: refs/pull/${{ github.event.issue.number }}/head
+      
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ inputs.terraform_version != '' && inputs.terraform_version || null }}
 
       - name: Initialize Terraform
         env:
