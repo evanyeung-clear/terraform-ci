@@ -51,6 +51,7 @@ jobs:
     uses: ./.github/workflows/shared-terraform-apply.yaml
     with:
       directory: preview
+    secrets: inherit
     permissions:
       pull-requests: write
       contents: write
@@ -62,6 +63,7 @@ jobs:
     uses: ./.github/workflows/shared-terraform-apply.yaml
     with:
       directory: production
+    secrets: inherit
     permissions:
       pull-requests: write
       contents: write

@@ -27,6 +27,7 @@ jobs:
     uses: ./.github/workflows/shared-terraform-plan.yaml
     with: 
       directory: preview
+    secrets: inherit
     permissions:
       pull-requests: write
       statuses: write
