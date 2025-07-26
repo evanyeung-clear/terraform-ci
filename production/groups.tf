@@ -12,3 +12,4 @@ resource "okta_group" "example3" {
   name        = "Example3"
   description = "My Example Group"
 }
+
