@@ -84,7 +84,7 @@ jobs:
 
             Only one deployment can run at a time to avoid conflicts. Please wait for the active deployment to complete before trying again.
 
-            🔗 [View the current deployment](${{ steps.lock.outputs.link }})              
+            🔗 [View the blocking deployment](${{ steps.lock.outputs.link }})              
             `
 
             github.rest.issues.createComment({
@@ -151,34 +151,104 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: refs/pull/${{ github.event.issue.number }}/head
-  
-      - name: Run Terraform Apply
-        id: tf_apply
-        run: |
-          echo "Running Terraform Apply..."
-          # Simulate Terraform Apply (replace with real command)
-          sleep 1
 
+      - name: Initialize Terraform
+        env:
+          TF_TOKEN_APP_TERRAFORM_IO: ${{ secrets.TF_TOKEN_APP_TERRAFORM_IO }}
+          TF_CLOUD_ORGANIZATION: ${{ secrets.TF_CLOUD_ORGANIZATION }}
+          TF_WORKSPACE: ${{ secrets.TF_WORKSPACE }}
+          OKTA_ORG_NAME: ${{ secrets.OKTA_ORG_NAME }} 
+          OKTA_BASE_URL: ${{ secrets.OKTA_BASE_URL }} 
+          OKTA_API_CLIENT_ID: ${{ secrets.OKTA_API_CLIENT_ID }} 
+          OKTA_API_PRIVATE_KEY_ID: ${{ secrets.OKTA_API_PRIVATE_KEY_ID }} 
+          OKTA_API_PRIVATE_KEY: ${{ secrets.OKTA_API_PRIVATE_KEY }} 
+          OKTA_API_SCOPES: ${{ secrets.OKTA_API_SCOPES }} 
+        run: |
+          terraform init -input=false
+          terraform fmt -check
+          terraform validate -no-color
+
+      - name: Run Terraform Apply
+        id: apply
+        env:
+          TF_TOKEN_APP_TERRAFORM_IO: ${{ secrets.TF_TOKEN_APP_TERRAFORM_IO }}
+          TF_CLOUD_ORGANIZATION: ${{ secrets.TF_CLOUD_ORGANIZATION }}
+          TF_WORKSPACE: ${{ secrets.TF_WORKSPACE }}
+          OKTA_ORG_NAME: ${{ secrets.OKTA_ORG_NAME }} 
+          OKTA_BASE_URL: ${{ secrets.OKTA_BASE_URL }} 
+          OKTA_API_CLIENT_ID: ${{ secrets.OKTA_API_CLIENT_ID }} 
+          OKTA_API_PRIVATE_KEY_ID: ${{ secrets.OKTA_API_PRIVATE_KEY_ID }} 
+          OKTA_API_PRIVATE_KEY: ${{ secrets.OKTA_API_PRIVATE_KEY }} 
+          OKTA_API_SCOPES: ${{ secrets.OKTA_API_SCOPES }} 
+        run: |
+          # TODO: target specific changes
+          cmd="terraform apply -no-color -input=false -auto-approve"
+
+          start=$(date +%s)
+          $cmd 2> >(tee tf.console.txt) > >(tee tf.console.txt)
+          end=$(date +%s)
+
+          echo "duration=$((end - start))" >> $GITHUB_OUTPUT
+          echo "cmd=$cmd" >> $GITHUB_OUTPUT
+
+      - name: Format Terraform Apply Diff
+        id: diff
+        run: |
+          # Strip extra lines from tf.console.txt
+          awk '
+            /Terraform used the selected providers/ { found_start = 1 }
+            found_start {
+              print
+              if (/^(Error:|Plan:|Apply complete!|No changes.|Success)/) { exit }
+            }
+          ' tf.console.txt > tf.console.stripped.txt || true
+
+          # Filter lines starting with "  # " and prepend diff-specific symbols based on specific keywords.
+          # https://github.com/OP5dev/TF-via-PR
+          grep '^  # ' tf.console.txt | sed \
+            -e 's/^  # \(.* be created\)/+ \1/' \
+            -e 's/^  # \(.* be destroyed\)/- \1/' \
+            -e 's/^  # \(.* be updated\|.* be replaced\)/! \1/' \
+            -e 's/^  # \(.* be read\)/~ \1/' \
+            -e 's/^  # \(.*\)/# \1/' > tf.diff.txt || true
+          awk '/^(Error:|Plan:|Apply complete!|No changes.|Success)/' tf.console.txt > tf.summary.txt
+      
       - name: Comment Terraform Apply
         uses: actions/github-script@v7
         with: 
           script: |
+            const fs = require('fs');
+            // Helper function to safely read files with a default value
+            function safeReadFile(filePath, defaultContent = '') {
+              try {
+                return fs.readFileSync(filePath, 'utf8');
+              } catch (error) {
+                console.log(`Warning: Could not read file ${filePath}: ${error.message}`);
+                return defaultContent;
+              }
+            }
+
+            const runUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const diff = safeReadFile('${{ inputs.directory }}/tf.diff.txt', 'No changes detected');
+            const summary = safeReadFile('${{ inputs.directory }}/tf.summary.txt', 'View output for details');
+            const cleanApply = safeReadFile('${{ inputs.directory }}/tf.console.stripped.txt', 'No apply output available');
+
             var body = `
-            **Terraform apply** (${{ inputs.directory }}) ran in \`10.98 seconds\`
+            **Terraform apply** (${{ inputs.directory }}) ran in [${{ steps.apply.outputs.duration }} seconds](${runUrl}).
             \`\`\`
-            terraform apply --target=
+            ${{ steps.apply.outputs.cmd }}
             \`\`\`
 
             #### Diff of changes
             \`\`\`diff
-            okta_network_zone.restricted-countries: Modifying... [id=nzolqmnk5qp8nUJ51297]
-            okta_network_zone.prohibited-countries: Creating...
-            okta_network_zone.restricted-countries: Modifications complete after 1s [id=nzolqmnk5qp8nUJ51297]
-            okta_network_zone.prohibited-countries: Creation complete after 1s [id=nzoraxa5xwjPSwBnx297]
+            ${diff}
             \`\`\`
 
             <details>
-            <summary>Apply complete! Resources: 1 added, 1 changed, 0 destroyed.</summary>
+            <summary>${summary}</summary>
+
+            \`\`\`
+            ${cleanApply}
             \`\`\`
             </details>
             `

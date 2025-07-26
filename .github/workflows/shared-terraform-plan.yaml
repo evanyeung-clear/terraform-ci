@@ -59,6 +59,7 @@ jobs:
           OKTA_API_PRIVATE_KEY: ${{ secrets.OKTA_API_PRIVATE_KEY }} 
           OKTA_API_SCOPES: ${{ secrets.OKTA_API_SCOPES }} 
         run: |
+          # TODO: target specific changes
           cmd="terraform plan -no-color -input=false"
 
           start=$(date +%s)
