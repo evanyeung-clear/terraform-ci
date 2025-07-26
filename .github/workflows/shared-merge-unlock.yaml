@@ -48,7 +48,7 @@ jobs:
 
               lockBranch = workflowRun.head_branch;
             } else {
-              lockBranch = ${{ steps.lock.outputs.branch }};
+              lockBranch = "${{ steps.lock.outputs.branch }}";
             }
 
             const currentBranch = context.ref.replace('refs/heads/', '')
