@@ -79,12 +79,19 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
+            // Rewrite the link to use redirect.github.com subdomain
+            const originalLink = `${{ steps.lock.outputs.link }}`;
+            let redirectLink = originalLink.replace(
+              /^https:\/\/github\.com\//,
+              'https://redirect.github.com/'
+            );
+
             var body = `
             ⛔ **Failed to acquire deployment lock** — another deployment is currently in progress.
 
             Only one deployment can run at a time to avoid conflicts. Please wait for the active deployment to complete before trying again.
 
-            🔗 [View the blocking deployment](${{ steps.lock.outputs.link }})              
+            🔗 [View the blocking deployment](${redirectLink})              
             `
 
             github.rest.issues.createComment({
