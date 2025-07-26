@@ -28,7 +28,7 @@ jobs:
           script: |
             var lockBranch;
 
-            if (!steps.lock.outputs.headless) {
+            if (!${{steps.lock.outputs.headless}}) {
               const url = '${{ steps.lock.outputs.link }}'
               const match = url.match(/^https:\/\/github\.com\/([^/]+)\/([^/]+)\/actions\/runs\/(\d+)/)
 
