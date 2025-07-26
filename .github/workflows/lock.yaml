@@ -27,7 +27,7 @@ jobs:
   lock:
     runs-on: ubuntu-latest
     steps:
-      - uses: github/lock@v2.3.1
+      - uses: forevanyeung/lock@e43a0b2920fca2eb45f02bde126d32e09949d419
         id: lock
         with:
           mode: ${{ github.event.inputs.mode }}

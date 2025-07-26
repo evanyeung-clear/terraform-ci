@@ -66,7 +66,7 @@ jobs:
       #       }
 
       - name: Check deployment lock
-        uses: github/lock@v2.3.1
+        uses: forevanyeung/lock@e43a0b2920fca2eb45f02bde126d32e09949d419
         id: lock
         with:
           mode: check
@@ -106,7 +106,7 @@ jobs:
           
       - name: Get deployment lock
         if: steps.lock.outputs.locked == 'false'
-        uses: forevanyeung/lock@3c4364c489c3d4dbafacf8fe4746340e08e9e7f2
+        uses: forevanyeung/lock@e43a0b2920fca2eb45f02bde126d32e09949d419
         with:
           mode: lock
           environment: ${{ inputs.directory }}
