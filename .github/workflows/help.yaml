@@ -48,7 +48,7 @@ jobs:
             github.rest.repos.createCommitStatus({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              sha: "${{ needs.lock.outputs.head_sha }}",
+              sha: "${{ github.event.pull_request.head.sha }}",
               state: "pending",
               context: "terraform-apply",
               description: "Expected - comment \"/terraform apply\" to deploy changes",
