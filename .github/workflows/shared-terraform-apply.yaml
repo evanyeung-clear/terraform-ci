@@ -31,6 +31,7 @@ jobs:
             });
 
             core.setOutput("head_sha", pr.head.sha);
+            core.setOutput("branch", pr.head.ref);
 
       - name: Check status checks passed # assume tf plan is a part of the status checks
         uses: actions/github-script@v7
@@ -79,7 +80,7 @@ jobs:
         with:
           script: |
             const lockedBranch = `${{ steps.lock.outputs.branch }}`;
-            const currentBranch = `${{ github.head_ref }}`;
+            const currentBranch = `${{ steps.pr.outputs.branch }}`;
             console.log(`Locked branch: ${lockedBranch}, Current branch: ${currentBranch}`);
 
             // Check if the lock is held by this branch
@@ -128,7 +129,7 @@ jobs:
           mode: lock
           environment: ${{ inputs.directory }}
           link: ${{ github.event.comment.html_url }}
-          branch: ${{ github.head_ref }}
+          branch: ${{ steps.pr.outputs.branch }}
 
   apply:
     runs-on: ubuntu-latest
