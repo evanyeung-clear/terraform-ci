@@ -214,11 +214,22 @@ jobs:
           cmd="terraform apply -no-color -input=false -auto-approve"
 
           start=$(date +%s)
+
+          # handle errors and capture output
+          set +e
           $cmd 2> >(tee tf.console.txt) > >(tee tf.console.txt)
+          status=$?
+          set -e
+          
           end=$(date +%s)
 
           echo "duration=$((end - start))" >> $GITHUB_OUTPUT
           echo "cmd=$cmd" >> $GITHUB_OUTPUT
+
+          if [ $status -ne 0 ]; then
+            echo "Terraform apply failed."
+            exit 1
+          fi
 
       - name: Format Terraform Apply Diff
         id: diff
@@ -304,7 +315,7 @@ jobs:
         uses: actions/github-script@v7
         with: 
           script: |
-            const state = "${{ steps.tf_apply.outcome }}" === "success" ? "success" : "failure";
+            const state = "${{ steps.apply.outcome }}" === "success" ? "success" : "failure";
             const runUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
 
             github.rest.repos.createCommitStatus({
