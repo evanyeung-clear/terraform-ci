@@ -231,6 +231,17 @@ jobs:
             exit 1
           fi
 
+      - name: Tag branch on successful apply
+        if: steps.apply.outcome == 'success'
+        run: |
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "github-actions[bot]"
+          TAG="deploy-${{ inputs.directory }}"
+          git tag "$TAG"
+          git push origin "$TAG"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Format Terraform Apply Diff
         id: diff
         run: |
