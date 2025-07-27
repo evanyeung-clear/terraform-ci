@@ -122,7 +122,7 @@ jobs:
             core.setFailed('Failed to acquire lock.');
           
       - name: Get deployment lock
-        if: steps.lock-check.outputs.locked == 'false'
+        if: steps.lock.outputs.locked == 'false' || steps.lock-check.outputs.locked == 'false'
         uses: forevanyeung/lock@e43a0b2920fca2eb45f02bde126d32e09949d419
         with:
           mode: lock
