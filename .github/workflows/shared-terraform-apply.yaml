@@ -265,13 +265,14 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Update branch deployment badge
-        uses: ./.github/workflows/upload-badge.yaml
+        uses: emibcn/badge-to-branch-action@0249047dd1788493ecd27c34a6fd9231f3d96cc3
         with:
           label: ${{ inputs.directory }} branch
-          message: ${{ needs.lock.outputs.branch }}
+          status: ${{ needs.lock.outputs.branch }}
           color: green
-          style: flat-square
+          style: flat
           filename: latest-${{ inputs.directory }}-branch.svg
+          github_token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Format Terraform Apply Diff
         id: diff
