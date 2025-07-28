@@ -271,7 +271,7 @@ jobs:
           status: ${{ needs.lock.outputs.branch }}
           color: green
           style: flat
-          branch: badges
+          filename: latest-${{ inputs.directory }}-branch.svg
           github_token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Format Terraform Apply Diff
