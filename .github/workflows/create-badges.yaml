@@ -64,7 +64,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: ./shared-actions/upload-badge
+      - uses: ./.github/shared-actions/upload-badge
         with:
           label: production branch
           message: ${{ github.event.inputs.production-branch }}
