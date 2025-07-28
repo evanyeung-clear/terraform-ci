@@ -265,12 +265,12 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Update branch deployment badge
-        uses: emibcn/badge-to-branch-action@0249047dd1788493ecd27c34a6fd9231f3d96cc3
+        uses: ./shared-actions/upload-badge
         with:
           label: ${{ inputs.directory }} branch
-          status: ${{ needs.lock.outputs.branch }}
+          message: ${{ needs.lock.outputs.branch }}
           color: green
-          style: flat
+          style: flat-square
           filename: latest-${{ inputs.directory }}-branch.svg
           github_token: ${{ secrets.GITHUB_TOKEN }}
 
