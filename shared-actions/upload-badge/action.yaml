@@ -32,9 +32,6 @@ inputs:
 
 runs:
   using: composite
-  defaults:
-    run:
-      working-directory: badges
 
   steps:
     - name: Set up Node.js
@@ -47,6 +44,7 @@ runs:
 
     # Step 4: Create or replace the badge
     - name: Create badge
+      working-directory: badges
       run: |
           node -e "
           const fs = require('fs');
