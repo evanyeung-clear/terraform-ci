@@ -98,6 +98,8 @@ runs:
           
           # Get the current SHA of the file if it exists
           CURRENT_SHA=$(gh api repos/${{ github.repository }}/contents/$BADGE_PATH \
+            --method GET \
+            --field ref=badges \
             --jq '.sha' \
             -H "Accept: application/vnd.github.v3+json" \
             --silent 2>/dev/null || echo "")
@@ -109,7 +111,7 @@ runs:
               --method PUT \
               --field message="update ${{ inputs.filename }}" \
               --field content="$BADGE_CONTENT" \
-              --field branch="badges" \
+              --field branch=badges \
               --field sha="$CURRENT_SHA"
           else
             # File doesn't exist, create it
@@ -117,5 +119,5 @@ runs:
               --method PUT \
               --field message="create ${{ inputs.filename }}" \
               --field content="$BADGE_CONTENT" \
-              --field branch="badges"
+              --field branch=badges
           fi
