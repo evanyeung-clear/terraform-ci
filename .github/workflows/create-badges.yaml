@@ -58,16 +58,18 @@ jobs:
 
   latest-production-branch:
     if: ${{ github.event.inputs.production-branch != '' }}
+    runs-on: ubuntu-latest
     concurrency:
       group: badges
-    uses: ./shared-actions/upload-badge@main
-    with:
-      label: production branch
-      message: ${{ github.event.inputs.production-branch }}
-      color: green
-      style: flat-square
-      filename: latest-production-branch.svg
-      github_token: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: ./shared-actions/upload-badge@main
+        with:
+          label: production branch
+          message: ${{ github.event.inputs.production-branch }}
+          color: green
+          style: flat-square
+          filename: latest-production-branch.svg
+          github_token: ${{ secrets.GITHUB_TOKEN }}
 
   latest-preview-branch:
     if: ${{ github.event.inputs.preview-branch != '' }}
