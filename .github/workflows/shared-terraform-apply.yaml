@@ -332,6 +332,8 @@ jobs:
           script: |
             const state = (`${{ job.status }}` === 'success') ? 'success' : 'failure';
             const runUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const duration = ${{ steps.apply.outputs.duration }} || '0';
+
             github.rest.repos.createCommitStatus({
               owner: context.repo.owner,
               repo: context.repo.repo,
@@ -340,8 +342,8 @@ jobs:
               target_url: runUrl,
               context: "terraform-apply",
               description: state === "success"
-                ? "Successful in ${{ steps.apply.outputs.duration }}s"
-                : "Failed after ${{ steps.apply.outputs.duration }}s"
+                ? `Successful in ${duration}s`
+                : `Failed after ${duration}s`
             });
 
   # TODO: re-apply main if deployment fails
