@@ -40,6 +40,7 @@ runs:
         node-version: 22
 
     - name: Install dependencies
+      shell: bash
       run: npm ci
 
     # Step 4: Create or replace the badge
@@ -93,6 +94,7 @@ runs:
     - name: Commit and push badge
       env:
         GITHUB_TOKEN: ${{ inputs.github_token }}
+      shell: bash
       run: |
           git config --local user.name "github-actions"
           git config --local user.email "action@github.com"
