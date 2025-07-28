@@ -60,7 +60,7 @@ jobs:
     if: ${{ github.event.inputs.production-branch != '' }}
     concurrency:
       group: badges
-    uses: ./shared-actions/upload-badge
+    uses: ./shared-actions/upload-badge@main
     with:
       label: production branch
       message: ${{ github.event.inputs.production-branch }}
