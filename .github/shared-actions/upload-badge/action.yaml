@@ -93,8 +93,11 @@ runs:
           # Read the badge file content and encode it as base64
           BADGE_CONTENT=$(base64 -w 0 "${{ inputs.filename }}")
           
+          # Set the file path in the badges directory
+          BADGE_PATH="badges/${{ inputs.filename }}"
+          
           # Get the current SHA of the file if it exists
-          CURRENT_SHA=$(gh api repos/${{ github.repository }}/contents/${{ inputs.filename }} \
+          CURRENT_SHA=$(gh api repos/${{ github.repository }}/contents/$BADGE_PATH \
             --jq '.sha' \
             -H "Accept: application/vnd.github.v3+json" \
             --silent 2>/dev/null || echo "")
@@ -102,7 +105,7 @@ runs:
           # Prepare the API payload
           if [ -n "$CURRENT_SHA" ]; then
             # File exists, update it
-            gh api repos/${{ github.repository }}/contents/${{ inputs.filename }} \
+            gh api repos/${{ github.repository }}/contents/$BADGE_PATH \
               --method PUT \
               --field message="update ${{ inputs.filename }}" \
               --field content="$BADGE_CONTENT" \
@@ -110,7 +113,7 @@ runs:
               --field sha="$CURRENT_SHA"
           else
             # File doesn't exist, create it
-            gh api repos/${{ github.repository }}/contents/${{ inputs.filename }} \
+            gh api repos/${{ github.repository }}/contents/$BADGE_PATH \
               --method PUT \
               --field message="create ${{ inputs.filename }}" \
               --field content="$BADGE_CONTENT" \
