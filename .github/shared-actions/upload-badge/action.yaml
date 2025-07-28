@@ -98,11 +98,12 @@ runs:
           
           # Get the current SHA of the file if it exists
           CURRENT_SHA=$(gh api repos/${{ github.repository }}/contents/$BADGE_PATH \
+            -H "Accept: application/vnd.github.v3+json" \
             --method GET \
             --field ref=badges \
-            --jq '.sha' \
-            -H "Accept: application/vnd.github.v3+json" \
-            --silent 2>/dev/null || echo "")
+            --jq '.sha' || echo "")
+
+          echo "Current SHA: $CURRENT_SHA"
           
           # Prepare the API payload
           if [ -n "$CURRENT_SHA" ]; then
