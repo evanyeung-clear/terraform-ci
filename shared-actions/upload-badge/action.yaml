@@ -45,6 +45,7 @@ runs:
     # Step 4: Create or replace the badge
     - name: Create badge
       working-directory: badges
+      shell: bash
       run: |
           node -e "
           const fs = require('fs');

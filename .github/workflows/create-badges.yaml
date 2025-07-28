@@ -60,13 +60,14 @@ jobs:
     if: ${{ github.event.inputs.production-branch != '' }}
     concurrency:
       group: badges
-    uses: ./.github/workflows/upload-badge.yaml
+    uses: ./shared-actions/upload-badge
     with:
       label: production branch
       message: ${{ github.event.inputs.production-branch }}
       color: green
       style: flat-square
       filename: latest-production-branch.svg
+      github_token: ${{ secrets.GITHUB_TOKEN }}
 
   latest-preview-branch:
     if: ${{ github.event.inputs.preview-branch != '' }}
