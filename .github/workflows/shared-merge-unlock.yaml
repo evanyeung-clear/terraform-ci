@@ -1,15 +1,34 @@
 name: Release lock on merge
 
 on:
-  pull_request:
-    types: [closed]
-
+  workflow_call:
+    inputs:
+      directory:
+        description: 'Directory to run Terraform in'
+        required: true
+        type: string
+      pr_number:
+        description: 'Pull request number'
+        required: true
+        type: number
+      pr_merged:
+        description: 'Whether the PR was merged'
+        required: true
+        type: boolean
+      source_branch:
+        description: 'Source branch of the PR'
+        required: true
+        type: string
+      target_branch:
+        description: 'Target branch of the PR'
+        required: true
+        type: string
 
 jobs:
   unlock: 
     if: >
-      github.event.pull_request.merged == true && 
-      github.event.pull_request.base.ref == github.event.repository.default_branch
+      inputs.pr_merged == true && 
+      inputs.target_branch == github.event.repository.default_branch
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write
@@ -21,6 +40,7 @@ jobs:
         id: lock
         with:
           mode: check
+          environment: ${{ inputs.directory }}
 
       - name: Check lock branch
         if: steps.lock.outputs.locked == 'true'
@@ -54,7 +74,7 @@ jobs:
               lockBranch = "${{ steps.lock.outputs.branch }}";
             }
 
-            const sourceBranch = context.payload.pull_request.head.ref;
+            const sourceBranch = "${{ inputs.source_branch }}";
 
             console.log(`Source branch: ${sourceBranch}`)
             console.log(`Lock branch: ${lockBranch}`)
@@ -81,7 +101,7 @@ jobs:
         run: |
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git config --global user.name "github-actions[bot]"
-          TAG="deploy-${{ steps.lock.outputs.environment }}"
+          TAG="deploy-${{ inputs.directory }}"
           git tag "$TAG"
           git push --force origin "$TAG"
         env:
@@ -90,11 +110,11 @@ jobs:
       - name: Update branch deployment badge
         uses: ./.github/shared-actions/upload-badge
         with:
-          label: ${{ steps.lock.outputs.environment }} branch
-          message: main
+          label: ${{ inputs.directory }} branch
+          message: ${{ inputs.target_branch }}
           color: green
           style: flat-square
-          filename: latest-${{ steps.lock.outputs.environment }}-branch.svg
+          filename: latest-${{ inputs.directory }}-branch.svg
           github_token: ${{ secrets.GITHUB_TOKEN }} 
 
       - name: Comment lock released
@@ -107,7 +127,7 @@ jobs:
             `
 
             github.rest.issues.createComment({
-              issue_number: context.issue.number,
+              issue_number: ${{ inputs.pr_number }},
               owner: context.repo.owner,
               repo: context.repo.repo,
               body: body
