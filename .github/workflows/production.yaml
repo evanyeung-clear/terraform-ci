@@ -8,6 +8,7 @@ on:
       - production/**
     types: 
       - opened
+      - synchronize
       - reopened
       - closed
 
