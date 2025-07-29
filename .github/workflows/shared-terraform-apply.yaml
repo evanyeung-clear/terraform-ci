@@ -265,7 +265,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Update branch deployment badge
-        uses: ./shared-actions/upload-badge
+        uses: ./.github/shared-actions/upload-badge
         with:
           label: ${{ inputs.directory }} branch
           message: ${{ needs.lock.outputs.branch }}

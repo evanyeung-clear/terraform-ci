@@ -40,11 +40,13 @@ runs:
         node-version: 22
 
     - name: Install dependencies
+      shell: bash
+      working-directory: ${{github.action_path}}
       run: npm ci
 
-    # Step 4: Create or replace the badge
     - name: Create badge
-      working-directory: badges
+      shell: bash
+      working-directory: ${{github.action_path}}
       run: |
           node -e "
           const fs = require('fs');
@@ -81,19 +83,42 @@ runs:
           console.log('Badge created successfully:', badgeFile);
           "
 
-    - name: Checkout badges branch
-      uses: actions/checkout@v4
+    # Commit badge to badges branch using GitHub API
+    - name: Commit badge using GitHub API
       env:
         GITHUB_TOKEN: ${{ inputs.github_token }}
-      with:
-        ref: badges
-
-    # Step 5: Commit and push the badge
-    - name: Commit and push badge
-      env:
-        GITHUB_TOKEN: ${{ inputs.github_token }}
+      shell: bash
+      working-directory: ${{github.action_path}}
       run: |
-          git config --local user.name "github-actions"
-          git config --local user.email "action@github.com"
-          git add .
-          git diff-index --quiet HEAD || git commit -m "update ${{ inputs.filename }}" && git push
+          # Read the badge file content and encode it as base64
+          BADGE_CONTENT=$(base64 -w 0 "${{ inputs.filename }}")
+          
+          # Set the file path in the badges directory
+          BADGE_PATH="badges/${{ inputs.filename }}"
+          
+          # Get the current SHA of the file if it exists
+          CURRENT_SHA=$(gh api repos/${{ github.repository }}/contents/$BADGE_PATH \
+            -H "Accept: application/vnd.github.v3+json" \
+            --method GET \
+            --field ref=badges \
+            --jq '.sha' || echo "")
+
+          echo "Current SHA: $CURRENT_SHA"
+          
+          # Prepare the API payload
+          if [ -n "$CURRENT_SHA" ]; then
+            # File exists, update it
+            gh api repos/${{ github.repository }}/contents/$BADGE_PATH \
+              --method PUT \
+              --field message="update ${{ inputs.filename }}" \
+              --field content="$BADGE_CONTENT" \
+              --field branch=badges \
+              --field sha="$CURRENT_SHA"
+          else
+            # File doesn't exist, create it
+            gh api repos/${{ github.repository }}/contents/$BADGE_PATH \
+              --method PUT \
+              --field message="create ${{ inputs.filename }}" \
+              --field content="$BADGE_CONTENT" \
+              --field branch=badges
+          fi
