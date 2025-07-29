@@ -28,7 +28,10 @@ jobs:
   # apply:
 
   merge:
-    if: github.event_name == 'pull_request' && github.event.action == 'closed'
+    if: >
+      github.event_name == 'pull_request' && 
+      github.event.action == 'closed' && 
+      github.event.pull_request.merged == true
     uses: ./.github/workflows/shared-merge-unlock.yaml
     with:
       directory: production
@@ -40,3 +43,15 @@ jobs:
     permissions:
       pull-requests: write
       contents: write
+  
+  revert:
+    if: >
+      github.event_name == 'pull_request' && 
+      github.event.action == 'closed' && 
+      github.event.pull_request.merged == false
+    runs-on: ubuntu-latest
+    steps:
+      - name: Handle cancelled PR
+        run: |
+          echo "PR was closed without merging - performing cleanup"
+          # TODO: Add cleanup logic here
