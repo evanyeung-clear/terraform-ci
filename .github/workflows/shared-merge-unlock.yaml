@@ -61,18 +61,21 @@ jobs:
               return 'unlock'
             }
 
+      - name: Exit if lock should not be unlocked
+        if: steps.check.outputs.result != 'unlock'
+        run: |
+          echo "Lock should not be unlocked - either no lock exists or lock belongs to different branch"
+          exit 0
+
       - name: Release lock
-        if: steps.check.outputs.result == 'unlock'
         uses: forevanyeung/lock@e43a0b2920fca2eb45f02bde126d32e09949d419
         with:
           mode: unlock 
 
       - name: Checkout repository
-        if: steps.check.outputs.result == 'unlock'
         uses: actions/checkout@v4
 
       - name: Tag commit on successful merge
-        if: steps.check.outputs.result == 'unlock'
         run: |
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git config --global user.name "github-actions[bot]"
@@ -83,7 +86,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Update branch deployment badge
-        if: steps.check.outputs.result == 'unlock'
         uses: ./.github/shared-actions/upload-badge
         with:
           label: ${{ steps.lock.outputs.environment }} branch
@@ -94,7 +96,6 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }} 
 
       - name: Comment lock released
-        if: steps.check.outputs.result == 'unlock'
         uses: actions/github-script@v7
         with:
           script: |
