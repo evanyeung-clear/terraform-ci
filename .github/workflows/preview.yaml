@@ -6,13 +6,6 @@ on:
       - main
     paths: 
       - preview/**
-    
-  # push:
-  #   branches: 
-  #     - main
-  #   paths: 
-  #     - preview/**
-  #
 
 jobs:
   auto-approve:
