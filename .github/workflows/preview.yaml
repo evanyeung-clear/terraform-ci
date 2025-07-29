@@ -6,17 +6,22 @@ on:
       - main
     paths: 
       - preview/**
+    types: 
+      - opened
+      - synchronize
+      - reopened
+      - closed
 
 jobs:
   auto-approve:
-    if: github.event_name == 'pull_request'
+    if: github.event_name == 'pull_request' && github.event.action != 'closed'
     uses: ./.github/workflows/shared-auto-approve.yaml
     permissions:
       contents: read
       pull-requests: write
 
   plan:
-    if: github.event_name == 'pull_request'
+    if: github.event_name == 'pull_request' && github.event.action != 'closed'
     uses: ./.github/workflows/shared-terraform-plan.yaml
     with: 
       directory: preview
