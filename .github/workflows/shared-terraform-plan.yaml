@@ -35,7 +35,7 @@ jobs:
         env:
           TF_TOKEN_APP_TERRAFORM_IO: ${{ secrets.TF_TOKEN_APP_TERRAFORM_IO }}
           TF_CLOUD_ORGANIZATION: ${{ secrets.TF_CLOUD_ORGANIZATION }}
-          TF_WORKSPACE: ${{ secrets.TF_WORKSPACE }}
+          TF_WORKSPACE: ${{ inputs.directory }}
           OKTA_ORG_NAME: ${{ secrets.OKTA_ORG_NAME }} 
           OKTA_BASE_URL: ${{ secrets.OKTA_BASE_URL }} 
           OKTA_API_CLIENT_ID: ${{ secrets.OKTA_API_CLIENT_ID }} 
@@ -52,7 +52,7 @@ jobs:
         env:
           TF_TOKEN_APP_TERRAFORM_IO: ${{ secrets.TF_TOKEN_APP_TERRAFORM_IO }}
           TF_CLOUD_ORGANIZATION: ${{ secrets.TF_CLOUD_ORGANIZATION }}
-          TF_WORKSPACE: ${{ secrets.TF_WORKSPACE }}
+          TF_WORKSPACE: ${{ inputs.directory }}
           OKTA_ORG_NAME: ${{ secrets.OKTA_ORG_NAME }} 
           OKTA_BASE_URL: ${{ secrets.OKTA_BASE_URL }} 
           OKTA_API_CLIENT_ID: ${{ secrets.OKTA_API_CLIENT_ID }} 
