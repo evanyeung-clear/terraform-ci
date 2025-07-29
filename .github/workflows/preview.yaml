@@ -6,24 +6,22 @@ on:
       - main
     paths: 
       - preview/**
-    
-  # push:
-  #   branches: 
-  #     - main
-  #   paths: 
-  #     - preview/**
-  #
+    types: 
+      - opened
+      - synchronize
+      - reopened
+      - closed
 
 jobs:
   auto-approve:
-    if: github.event_name == 'pull_request'
+    if: github.event_name == 'pull_request' && github.event.action != 'closed'
     uses: ./.github/workflows/shared-auto-approve.yaml
     permissions:
       contents: read
       pull-requests: write
 
   plan:
-    if: github.event_name == 'pull_request'
+    if: github.event_name == 'pull_request' && github.event.action != 'closed'
     uses: ./.github/workflows/shared-terraform-plan.yaml
     with: 
       directory: preview
@@ -36,8 +34,16 @@ jobs:
   # Terraform apply is ran via the apply.yaml workflow
   # apply:
 
-  # merge:
-  #   if: github.event_name == 'push'
-  #   steps:
-  #     - name: 
-  #       uses:
+  merge:
+    if: github.event_name == 'pull_request' && github.event.action == 'closed'
+    uses: ./.github/workflows/shared-merge-unlock.yaml
+    with:
+      directory: production
+      pr_number: ${{ github.event.number }}
+      pr_merged: ${{ github.event.pull_request.merged }}
+      source_branch: ${{ github.event.pull_request.head.ref }}
+      target_branch: ${{ github.event.pull_request.base.ref }}
+    secrets: inherit
+    permissions:
+      pull-requests: write
+      contents: write
