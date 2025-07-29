@@ -7,7 +7,9 @@ on:
 
 jobs:
   unlock: 
-    if: github.event.pull_request.merged == true
+    if: >
+      github.event.pull_request.merged == true && 
+      github.event.pull_request.base.ref == github.event.repository.default_branch
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write
@@ -61,14 +63,41 @@ jobs:
               return 'unlock'
             }
 
+      - name: Exit if lock should not be unlocked
+        if: steps.check.outputs.result != 'unlock'
+        run: |
+          echo "Lock should not be unlocked - either no lock exists or lock belongs to different branch"
+          exit 0
+
       - name: Release lock
-        if: steps.check.outputs.result == 'unlock'
         uses: forevanyeung/lock@e43a0b2920fca2eb45f02bde126d32e09949d419
         with:
           mode: unlock 
 
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Tag commit on successful merge
+        run: |
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "github-actions[bot]"
+          TAG="deploy-${{ steps.lock.outputs.environment }}"
+          git tag "$TAG"
+          git push --force origin "$TAG"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Update branch deployment badge
+        uses: ./.github/shared-actions/upload-badge
+        with:
+          label: ${{ steps.lock.outputs.environment }} branch
+          message: main
+          color: green
+          style: flat-square
+          filename: latest-${{ steps.lock.outputs.environment }}-branch.svg
+          github_token: ${{ secrets.GITHUB_TOKEN }} 
+
       - name: Comment lock released
-        if: steps.check.outputs.result == 'unlock'
         uses: actions/github-script@v7
         with:
           script: |
