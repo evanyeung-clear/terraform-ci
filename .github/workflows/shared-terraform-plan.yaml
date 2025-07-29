@@ -26,10 +26,25 @@ jobs:
       - name: Checkout pull request
         uses: actions/checkout@v4
 
+      - name: Check for .terraform-version file
+        id: terraform-version
+        run: |
+          if [ -n "${{ inputs.terraform_version }}" ]; then
+            echo "Using terraform_version input: ${{ inputs.terraform_version }}"
+            echo "version=${{ inputs.terraform_version }}" >> $GITHUB_OUTPUT
+          elif [ -f ".terraform-version" ]; then
+            version=$(cat .terraform-version | tr -d '[:space:]')
+            echo "Found .terraform-version file with version: $version"
+            echo "version=$version" >> $GITHUB_OUTPUT
+          else
+            echo "No terraform version specified, using latest"
+            echo "version=" >> $GITHUB_OUTPUT
+          fi
+
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
-          terraform_version: ${{ inputs.terraform_version != '' && inputs.terraform_version || null }}
+          terraform_version: ${{ steps.terraform-version.outputs.version || null }}
 
       - name: Initialize Terraform
         env:
