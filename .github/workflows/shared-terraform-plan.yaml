@@ -103,7 +103,7 @@ jobs:
           # Now mask the decrypted values of those keys from the decrypted file
           for key in $all_encrypted_keys; do
             # Handle string values
-            decrypted_value=$(jq -r --arg key "$key" '.[$key] // empty' $decrypted_variables_file)
+            decrypted_value=$(jq -r --arg key "$key" '.[$key] // empty | select(type == "string")' $decrypted_variables_file)
             if [[ -n "$decrypted_value" && "$decrypted_value" != "null" ]]; then
               echo $local_secret | sed 's/^ */::add-mask::/'
               echo "Masked decrypted value for key: $key"
