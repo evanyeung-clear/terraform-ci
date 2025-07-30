@@ -4,13 +4,21 @@ on:
   workflow_call:
     inputs:
       directory:
-        description: 'Directory to run Terraform in'
+        description: "Directory to run Terraform in"
         required: true
         type: string
       terraform_version:
-        description: 'Terraform version to use'
+        description: "Terraform version to use"
         required: false
         type: string
+      vars_file:
+        description: "Optional path to Terraform variables file relative to the directory"
+        required: false
+        type: string
+    secrets:
+      sops_age_key:
+        description: "Optional if you need to decode the variables file with SOPS"
+        required: false
 
 jobs:
   plan:
@@ -46,38 +54,104 @@ jobs:
         with:
           terraform_version: ${{ steps.terraform-version.outputs.version || null }}
 
+      - name: Setup SOPS
+        if: inputs.vars_file != '' && env.SOPS_AGE_KEY != ''
+        env:
+          SOPS_AGE_KEY: ${{ secrets.sops_age_key }}
+        run: |
+          # Download the binary
+          curl -Lo sops https://github.com/getsops/sops/releases/download/v3.10.2/sops-v3.10.2.linux.amd64
+
+          # Verify the binary using the checksums file
+          echo "79b0f844237bd4b0446e4dc884dbc1765fc7dedc3968f743d5949c6f2e701739  sops" > checksum.txt
+          if ! shasum -c checksum.txt; then
+            echo "::error title=Checksum failed::The file downloaded does not match the checksum provided."
+            exit 1
+          fi
+
+          # Add current working directory to PATH
+          echo $(pwd) >> "$GITHUB_PATH"
+
+          # Make the binary executable
+          chmod +x sops
+
+      - name: Decrypt Terraform variables
+        id: decrypt
+        if: inputs.vars_file != '' && env.SOPS_AGE_KEY != ''
+        env:
+          SOPS_AGE_KEY: ${{ secrets.sops_age_key }}
+        run: |
+          decrypted_variables_file="terraform.tfvars.json"
+
+          sops -d ${{ inputs.vars_file }} > $decrypted_variables_file
+
+          # Set the decrypted file as output
+          echo "decrypted_file=$decrypted_variables_file" >> $GITHUB_OUTPUT
+
+          # find enc vars and mask from github output
+          echo "Masking decrypted values of variables that were encrypted..."
+
+          # First, identify keys that have ENC[ values in the original encrypted file
+          encrypted_keys=$(jq -r 'to_entries[] | select(.value | type == "string" and startswith("ENC[")) | .key' ${{ inputs.vars_file }})
+
+          # Also handle array values that contain ENC[ patterns
+          encrypted_array_keys=$(jq -r 'to_entries[] | select(.value | type == "array" and (.[0] | type == "string" and startswith("ENC["))) | .key' ${{ inputs.vars_file }})
+
+          # Combine both sets of keys
+          all_encrypted_keys=$(echo -e "$encrypted_keys\n$encrypted_array_keys" | sort -u | grep -v '^$')
+
+          # Now mask the decrypted values of those keys from the decrypted file
+          for key in $all_encrypted_keys; do
+            # Handle string values
+            decrypted_value=$(jq -r --arg key "$key" '.[$key] // empty' $decrypted_variables_file)
+            if [[ -n "$decrypted_value" && "$decrypted_value" != "null" ]]; then
+              echo "::add-mask::$decrypted_value"
+              echo "Masked decrypted value for key: $key"
+            fi
+
+            # Handle array values - mask each element
+            jq -r --arg key "$key" '.[$key][]? // empty' $decrypted_variables_file 2>/dev/null | while read -r array_value; do
+              if [[ -n "$array_value" && "$array_value" != "null" ]]; then
+                echo "::add-mask::$array_value"
+                echo "Masked decrypted array value for key: $key"
+              fi
+            done
+          done
+
       - name: Initialize Terraform
         env:
           TF_TOKEN_APP_TERRAFORM_IO: ${{ secrets.TF_TOKEN_APP_TERRAFORM_IO }}
           TF_CLOUD_ORGANIZATION: ${{ secrets.TF_CLOUD_ORGANIZATION }}
           TF_WORKSPACE: ${{ inputs.directory }}
-          OKTA_ORG_NAME: ${{ secrets.OKTA_ORG_NAME }} 
-          OKTA_BASE_URL: ${{ secrets.OKTA_BASE_URL }} 
-          OKTA_API_CLIENT_ID: ${{ secrets.OKTA_API_CLIENT_ID }} 
-          OKTA_API_PRIVATE_KEY_ID: ${{ secrets.OKTA_API_PRIVATE_KEY_ID }} 
-          OKTA_API_PRIVATE_KEY: ${{ secrets.OKTA_API_PRIVATE_KEY }} 
-          OKTA_API_SCOPES: ${{ secrets.OKTA_API_SCOPES }} 
         run: |
           terraform init -input=false
           terraform fmt -check
           terraform validate -no-color
-  
+
       - name: Run Terraform Plan
         id: plan
         env:
-          # TODO: dynamic set based on service
           TF_TOKEN_APP_TERRAFORM_IO: ${{ secrets.TF_TOKEN_APP_TERRAFORM_IO }}
           TF_CLOUD_ORGANIZATION: ${{ secrets.TF_CLOUD_ORGANIZATION }}
           TF_WORKSPACE: ${{ inputs.directory }}
-          OKTA_ORG_NAME: ${{ secrets.OKTA_ORG_NAME }} 
-          OKTA_BASE_URL: ${{ secrets.OKTA_BASE_URL }} 
-          OKTA_API_CLIENT_ID: ${{ secrets.OKTA_API_CLIENT_ID }} 
-          OKTA_API_PRIVATE_KEY_ID: ${{ secrets.OKTA_API_PRIVATE_KEY_ID }} 
-          OKTA_API_PRIVATE_KEY: ${{ secrets.OKTA_API_PRIVATE_KEY }} 
-          OKTA_API_SCOPES: ${{ secrets.OKTA_API_SCOPES }} 
         run: |
-          # TODO: target specific changes
+          # Build terraform plan command based on vars file and SOPS usage
           cmd="terraform plan -no-color -input=false"
+
+          # Add vars file if specified
+          if [[ -n "${{ inputs.vars_file }}" ]]; then
+            if [[ -n "${{ secrets.sops_age_key }}" && -n "${{ steps.decrypt.outputs.decrypted_file }}" ]]; then
+              # Use decrypted file if SOPS was used
+              cmd="$cmd -var-file=${{ steps.decrypt.outputs.decrypted_file }}"
+              echo "Using SOPS-decrypted vars file: ${{ steps.decrypt.outputs.decrypted_file }}"
+            else
+              # Use original vars file if no SOPS
+              cmd="$cmd -var-file=${{ inputs.vars_file }}"
+              echo "Using vars file: ${{ inputs.vars_file }}"
+            fi
+          fi
+
+          echo "Terraform command: $cmd"
 
           start=$(date +%s)
           $cmd 2> >(tee tf.console.txt) > >(tee tf.console.txt)
@@ -176,10 +250,10 @@ jobs:
               repo: context.repo.repo,
               body: body
             })
-      
+
       - name: Add help to apply commit status
         uses: actions/github-script@v7
-        with: 
+        with:
           script: |
             github.rest.repos.createCommitStatus({
               owner: context.repo.owner,
@@ -189,7 +263,7 @@ jobs:
               context: "terraform-apply",
               description: "Comment \"/terraform apply\" to deploy changes",
             });
-    
+
   # test:
   #   if: ${{ !always() }}
   #   runs-on: ubuntu-latest

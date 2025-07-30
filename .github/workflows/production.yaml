@@ -2,11 +2,11 @@ name: Okta Production
 
 on:
   pull_request:
-    branches: 
+    branches:
       - main
-    paths: 
+    paths:
       - production/**
-    types: 
+    types:
       - opened
       - synchronize
       - reopened
@@ -16,9 +16,12 @@ jobs:
   plan:
     if: github.event_name == 'pull_request' && github.event.action != 'closed'
     uses: ./.github/workflows/shared-terraform-plan.yaml
-    with: 
+    with:
       directory: production
-    secrets: inherit
+      vars_file: terraform.enc.tfvars.json
+    secrets:
+      inherit: true
+      sops_age_key: ${{ secrets.sops_age_key }}
     permissions:
       pull-requests: write
       statuses: write
@@ -43,7 +46,7 @@ jobs:
     permissions:
       pull-requests: write
       contents: write
-  
+
   revert:
     if: >
       github.event_name == 'pull_request' && 
