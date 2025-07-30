@@ -26,9 +26,7 @@ jobs:
     with:
       directory: preview
       vars_file: terraform.enc.tfvars.json
-    secrets:
-      inherit: true
-      sops_age_key: ${{ secrets.sops_age_key }}
+    secrets: inherit
     permissions:
       pull-requests: write
       statuses: write
