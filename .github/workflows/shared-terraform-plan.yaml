@@ -61,6 +61,7 @@ jobs:
         env:
           SOPS_AGE_KEY: ${{ secrets.sops_age_key }}
         with:
+          working_directory: ${{ inputs.directory }}
           input_file: ${{ inputs.vars_file }}
           output_file: terraform.tfvars.json
           sops_age_key: ${{ secrets.sops_age_key }}

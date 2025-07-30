@@ -2,6 +2,10 @@ name: Decrypt SOPS
 description: "Decrypts a SOPS encrypted file and masks the values of encrypted variables from the output"
 
 inputs:
+  working_directory:
+    description: "Working directory to run the action in"
+    required: false
+    type: string
   input_file:
     description: "Path to the encrypted file"
     required: true
@@ -25,6 +29,7 @@ runs:
   steps:
     - name: Setup SOPS
       shell: bash
+      working-directory: ${{ inputs.working_directory || github.workspace }}
       run: |
         # Download the binary
         curl -Lo sops https://github.com/getsops/sops/releases/download/v3.10.2/sops-v3.10.2.linux.amd64
@@ -46,6 +51,7 @@ runs:
       env:
         SOPS_AGE_KEY: ${{ inputs.sops_age_key }}
       shell: bash
+      working-directory: ${{ inputs.working_directory || github.workspace }}
       run: |
         decrypted_file=${{ inputs.output_file || 'decrypted.json' }}
 
