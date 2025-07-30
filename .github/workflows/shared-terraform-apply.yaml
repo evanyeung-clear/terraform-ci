@@ -258,8 +258,8 @@ jobs:
           TF_CLOUD_ORGANIZATION: ${{ secrets.TF_CLOUD_ORGANIZATION }}
           TF_WORKSPACE: ${{ inputs.directory }}
         run: |
-          # Build terraform plan command based on vars file and SOPS usage
-          cmd="terraform plan -no-color -input=false"
+          # Build terraform apply command based on vars file and SOPS usage
+          cmd="terraform apply -no-color -input=false"
 
           # Add vars file if specified
           if [[ -n "${{ inputs.vars_file }}" ]]; then
