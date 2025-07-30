@@ -99,6 +99,11 @@ jobs:
             fi
           fi
 
+          # Only target resources that are modified in code
+          targets=$(terraform plan -refresh=false -json | jq -r '.change.resource.addr|select(.!=null)|"-target="+.')
+          echo "Targets: $targets"
+          cmd="$cmd $targets"
+
           echo "Terraform command: $cmd"
 
           start=$(date +%s)
