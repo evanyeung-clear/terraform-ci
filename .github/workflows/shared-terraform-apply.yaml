@@ -7,7 +7,18 @@ on:
         description: 'Directory to run Terraform in'
         required: true
         type: string
-
+      terraform_version:
+        description: "Terraform version to use"
+        required: false
+        type: string
+      vars_file:
+        description: "Optional path to Terraform variables file relative to the directory"
+        required: false
+        type: string
+    secrets:
+      sops_age_key:
+        description: "Optional if you need to decode the variables file with SOPS"
+        required: false
 jobs:
   lock: 
     runs-on: ubuntu-latest
@@ -218,17 +229,23 @@ jobs:
         with:
           terraform_version: ${{ steps.terraform-version.outputs.version || null }}
 
+      - name: Decrypt Terraform variables
+        id: decrypt
+        uses: ./.github/shared-actions/decrypt-sops
+        if: inputs.vars_file != '' && env.SOPS_AGE_KEY != ''
+        env:
+          SOPS_AGE_KEY: ${{ secrets.sops_age_key }}
+        with:
+          working_directory: ${{ inputs.directory }}
+          input_file: ${{ inputs.vars_file }}
+          output_file: terraform.tfvars.json
+          sops_age_key: ${{ secrets.sops_age_key }}
+
       - name: Initialize Terraform
         env:
           TF_TOKEN_APP_TERRAFORM_IO: ${{ secrets.TF_TOKEN_APP_TERRAFORM_IO }}
           TF_CLOUD_ORGANIZATION: ${{ secrets.TF_CLOUD_ORGANIZATION }}
           TF_WORKSPACE: ${{ inputs.directory }}
-          OKTA_ORG_NAME: ${{ secrets.OKTA_ORG_NAME }} 
-          OKTA_BASE_URL: ${{ secrets.OKTA_BASE_URL }} 
-          OKTA_API_CLIENT_ID: ${{ secrets.OKTA_API_CLIENT_ID }} 
-          OKTA_API_PRIVATE_KEY_ID: ${{ secrets.OKTA_API_PRIVATE_KEY_ID }} 
-          OKTA_API_PRIVATE_KEY: ${{ secrets.OKTA_API_PRIVATE_KEY }} 
-          OKTA_API_SCOPES: ${{ secrets.OKTA_API_SCOPES }} 
         run: |
           terraform init -input=false
           terraform fmt -check
@@ -240,15 +257,22 @@ jobs:
           TF_TOKEN_APP_TERRAFORM_IO: ${{ secrets.TF_TOKEN_APP_TERRAFORM_IO }}
           TF_CLOUD_ORGANIZATION: ${{ secrets.TF_CLOUD_ORGANIZATION }}
           TF_WORKSPACE: ${{ inputs.directory }}
-          OKTA_ORG_NAME: ${{ secrets.OKTA_ORG_NAME }} 
-          OKTA_BASE_URL: ${{ secrets.OKTA_BASE_URL }} 
-          OKTA_API_CLIENT_ID: ${{ secrets.OKTA_API_CLIENT_ID }} 
-          OKTA_API_PRIVATE_KEY_ID: ${{ secrets.OKTA_API_PRIVATE_KEY_ID }} 
-          OKTA_API_PRIVATE_KEY: ${{ secrets.OKTA_API_PRIVATE_KEY }} 
-          OKTA_API_SCOPES: ${{ secrets.OKTA_API_SCOPES }} 
         run: |
-          # TODO: target specific changes
-          cmd="terraform apply -no-color -input=false -auto-approve"
+          # Build terraform plan command based on vars file and SOPS usage
+          cmd="terraform plan -no-color -input=false"
+
+          # Add vars file if specified
+          if [[ -n "${{ inputs.vars_file }}" ]]; then
+            if [[ -n "${{ secrets.sops_age_key }}" && -n "${{ steps.decrypt.outputs.decrypted_file }}" ]]; then
+              # Use decrypted file if SOPS was used
+              cmd="$cmd -var-file=${{ steps.decrypt.outputs.decrypted_file }}"
+              echo "Using SOPS-decrypted vars file: ${{ steps.decrypt.outputs.decrypted_file }}"
+            else
+              # Use original vars file if no SOPS
+              cmd="$cmd -var-file=${{ inputs.vars_file }}"
+              echo "Using vars file: ${{ inputs.vars_file }}"
+            fi
+          fi
 
           start=$(date +%s)
 
