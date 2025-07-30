@@ -2,11 +2,11 @@ name: Okta Production
 
 on:
   pull_request:
-    branches: 
+    branches:
       - main
-    paths: 
+    paths:
       - production/**
-    types: 
+    types:
       - opened
       - synchronize
       - reopened
@@ -16,8 +16,9 @@ jobs:
   plan:
     if: github.event_name == 'pull_request' && github.event.action != 'closed'
     uses: ./.github/workflows/shared-terraform-plan.yaml
-    with: 
+    with:
       directory: production
+      vars_file: terraform.enc.tfvars.json
     secrets: inherit
     permissions:
       pull-requests: write
@@ -27,8 +28,11 @@ jobs:
   # Terraform apply is ran via the apply.yaml workflow
   # apply:
 
-  merge:
-    if: github.event_name == 'pull_request' && github.event.action == 'closed'
+  release-lock:
+    if: >
+      github.event_name == 'pull_request' && 
+      github.event.action == 'closed' && 
+      github.event.pull_request.merged == true
     uses: ./.github/workflows/shared-merge-unlock.yaml
     with:
       directory: production
@@ -40,3 +44,15 @@ jobs:
     permissions:
       pull-requests: write
       contents: write
+
+  revert:
+    if: >
+      github.event_name == 'pull_request' && 
+      github.event.action == 'closed' && 
+      github.event.pull_request.merged == false
+    runs-on: ubuntu-latest
+    steps:
+      - name: Handle cancelled PR
+        run: |
+          echo "PR was closed without merging - performing cleanup"
+          # TODO: Add cleanup logic here
