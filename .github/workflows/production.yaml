@@ -28,7 +28,7 @@ jobs:
   # Terraform apply is ran via the apply.yaml workflow
   # apply:
 
-  merge:
+  release-lock:
     if: >
       github.event_name == 'pull_request' && 
       github.event.action == 'closed' && 
