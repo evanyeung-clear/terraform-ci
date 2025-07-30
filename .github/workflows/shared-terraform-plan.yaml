@@ -105,7 +105,7 @@ jobs:
             # Handle string values
             decrypted_value=$(jq -r --arg key "$key" '.[$key] // empty' $decrypted_variables_file)
             if [[ -n "$decrypted_value" && "$decrypted_value" != "null" ]]; then
-              echo "::add-mask::$decrypted_value"
+              echo $local_secret | sed 's/^ */::add-mask::/'
               echo "Masked decrypted value for key: $key"
             fi
 
