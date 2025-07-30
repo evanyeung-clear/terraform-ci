@@ -47,7 +47,7 @@ runs:
         SOPS_AGE_KEY: ${{ inputs.sops_age_key }}
       shell: bash
       run: |
-        decrypted_file = ${{ inputs.output_file || 'decrypted.json' }}
+        decrypted_file=${{ inputs.output_file || 'decrypted.json' }}
 
         sops -d ${{ inputs.input_file }} > $decrypted_file
 
