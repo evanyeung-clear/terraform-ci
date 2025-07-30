@@ -1,134 +1,134 @@
 name: Release lock on merge
 
 on:
-  workflow_call:
-    inputs:
-      directory:
-        description: 'Directory to run Terraform in'
-        required: true
-        type: string
-      pr_number:
-        description: 'Pull request number'
-        required: true
-        type: number
-      pr_merged:
-        description: 'Whether the PR was merged'
-        required: true
-        type: boolean
-      source_branch:
-        description: 'Source branch of the PR'
-        required: true
-        type: string
-      target_branch:
-        description: 'Target branch of the PR'
-        required: true
-        type: string
+    workflow_call:
+        inputs:
+            directory:
+                description: "Directory to run Terraform in"
+                required: true
+                type: string
+            pr_number:
+                description: "Pull request number"
+                required: true
+                type: number
+            pr_merged:
+                description: "Whether the PR was merged"
+                required: true
+                type: boolean
+            source_branch:
+                description: "Source branch of the PR"
+                required: true
+                type: string
+            target_branch:
+                description: "Target branch of the PR"
+                required: true
+                type: string
 
 jobs:
-  unlock: 
-    if: >
-      inputs.pr_merged == true && 
-      inputs.target_branch == github.event.repository.default_branch
-    runs-on: ubuntu-latest
-    permissions:
-      pull-requests: write
-      contents: write
+    unlock:
+        if: >
+            inputs.pr_merged == true && 
+            inputs.target_branch == github.event.repository.default_branch
+        runs-on: ubuntu-latest
+        permissions:
+            pull-requests: write
+            contents: write
 
-    steps:
-      - name: Check deployment lock
-        uses: forevanyeung/lock@e43a0b2920fca2eb45f02bde126d32e09949d419
-        id: lock
-        with:
-          mode: check
-          environment: ${{ inputs.directory }}
+        steps:
+            - name: Check deployment lock
+              uses: forevanyeung/lock@e43a0b2920fca2eb45f02bde126d32e09949d419
+              id: lock
+              with:
+                  mode: check
+                  environment: ${{ inputs.directory }}
 
-      - name: Check lock branch
-        if: steps.lock.outputs.locked == 'true'
-        uses: actions/github-script@v7
-        id: check
-        with:
-          result-encoding: string
-          script: |
-            var lockBranch;
+            - name: Check lock branch
+              if: steps.lock.outputs.locked == 'true'
+              uses: actions/github-script@v7
+              id: check
+              with:
+                  result-encoding: string
+                  script: |
+                      var lockBranch;
 
-            if (!${{ steps.lock.outputs.headless }}) {
-              const url = '${{ steps.lock.outputs.link }}'
-              const match = url.match(/^https:\/\/github\.com\/([^/]+)\/([^/]+)\/actions\/runs\/(\d+)/)
+                      if (!${{ steps.lock.outputs.headless }}) {
+                        const url = '${{ steps.lock.outputs.link }}'
+                        const match = url.match(/^https:\/\/github\.com\/([^/]+)\/([^/]+)\/actions\/runs\/(\d+)/)
 
-              if (!match) {
-                // do not unlock
-                console.log(`Lock link does not match expected format: ${url}`)
-                return
-              }
+                        if (!match) {
+                          // do not unlock
+                          console.log(`Lock link does not match expected format: ${url}`)
+                          return
+                        }
 
-              const [, owner, repo, run_id] = match;
+                        const [, owner, repo, run_id] = match;
 
-              const { data: workflowRun } = await github.rest.actions.getWorkflowRun({ 
-                owner: owner, 
-                repo: repo, 
-                run_id: run_id 
-              });
+                        const { data: workflowRun } = await github.rest.actions.getWorkflowRun({ 
+                          owner: owner, 
+                          repo: repo, 
+                          run_id: run_id 
+                        });
 
-              lockBranch = workflowRun.head_branch;
-            } else {
-              lockBranch = "${{ steps.lock.outputs.branch }}";
-            }
+                        lockBranch = workflowRun.head_branch;
+                      } else {
+                        lockBranch = "${{ steps.lock.outputs.branch }}";
+                      }
 
-            const sourceBranch = "${{ inputs.source_branch }}";
+                      const sourceBranch = "${{ inputs.source_branch }}";
 
-            console.log(`Source branch: ${sourceBranch}`)
-            console.log(`Lock branch: ${lockBranch}`)
+                      console.log(`Source branch: ${sourceBranch}`)
+                      console.log(`Lock branch: ${lockBranch}`)
 
-            if (lockBranch == sourceBranch) {
-              return 'unlock'
-            }
+                      if (lockBranch == sourceBranch) {
+                        return 'unlock'
+                      }
 
-      - name: Exit if lock should not be unlocked
-        if: steps.check.outputs.result != 'unlock'
-        run: |
-          echo "Lock should not be unlocked - either no lock exists or lock belongs to different branch"
-          exit 0
+            - name: Exit if lock should not be unlocked
+              if: steps.check.outputs.result != 'unlock'
+              run: |
+                  echo "Lock should not be unlocked - either no lock exists or lock belongs to different branch"
+                  exit 0
 
-      - name: Release lock
-        uses: forevanyeung/lock@e43a0b2920fca2eb45f02bde126d32e09949d419
-        with:
-          mode: unlock 
+            - name: Release lock
+              uses: forevanyeung/lock@e43a0b2920fca2eb45f02bde126d32e09949d419
+              with:
+                  mode: unlock
 
-      - name: Checkout repository
-        uses: actions/checkout@v4
+            - name: Checkout repository
+              uses: actions/checkout@v4
 
-      - name: Tag commit on successful merge
-        run: |
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git config --global user.name "github-actions[bot]"
-          TAG="deploy-${{ inputs.directory }}"
-          git tag "$TAG"
-          git push --force origin "$TAG"
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+            - name: Tag commit on successful merge
+              run: |
+                  git config --global user.email "github-actions[bot]@users.noreply.github.com"
+                  git config --global user.name "github-actions[bot]"
+                  TAG="deploy-${{ inputs.directory }}"
+                  git tag "$TAG"
+                  git push --force origin "$TAG"
+              env:
+                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Update branch deployment badge
-        uses: ./.github/shared-actions/upload-badge
-        with:
-          label: ${{ inputs.directory }} branch
-          message: ${{ inputs.target_branch }}
-          color: green
-          style: flat-square
-          filename: latest-${{ inputs.directory }}-branch.svg
-          github_token: ${{ secrets.GITHUB_TOKEN }} 
+            - name: Update branch deployment badge
+              uses: ./.github/shared-actions/upload-badge
+              with:
+                  label: ${{ inputs.directory }} branch
+                  message: ${{ inputs.target_branch }}
+                  color: green
+                  style: flat-square
+                  filename: latest-${{ inputs.directory }}-branch.svg
+                  github_token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Comment lock released
-        uses: actions/github-script@v7
-        with:
-          script: |
-            var body = `
-            ✅ **Deployment lock released**
-            Deployment completed successfully.          
-            `
+            - name: Comment lock released
+              uses: actions/github-script@v7
+              with:
+                  script: |
+                      var body = `
+                      ✅ **Deployment lock released**
+                      Deployment completed successfully.          
+                      `
 
-            github.rest.issues.createComment({
-              issue_number: ${{ inputs.pr_number }},
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: body
-            })
+                      github.rest.issues.createComment({
+                        issue_number: ${{ inputs.pr_number }},
+                        owner: context.repo.owner,
+                        repo: context.repo.repo,
+                        body: body
+                      })
