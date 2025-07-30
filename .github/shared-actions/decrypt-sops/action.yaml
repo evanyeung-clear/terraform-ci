@@ -22,6 +22,7 @@ inputs:
 outputs:
   decrypted_file:
     description: "Path to the decrypted file"
+    value: ${{ steps.decrypt.outputs.decrypted_file }}
 
 runs:
   using: composite
@@ -48,6 +49,7 @@ runs:
         chmod +x sops
 
     - name: Decrypt file
+      id: decrypt
       env:
         SOPS_AGE_KEY: ${{ inputs.sops_age_key }}
       shell: bash
