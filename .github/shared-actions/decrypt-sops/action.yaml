@@ -53,6 +53,7 @@ runs:
       shell: bash
       working-directory: ${{ inputs.working_directory || github.workspace }}
       run: |
+        # Decrypt the file
         decrypted_file=${{ inputs.output_file || 'decrypted.json' }}
 
         sops -d ${{ inputs.input_file }} > $decrypted_file
@@ -64,10 +65,10 @@ runs:
         echo "Masking decrypted values of variables that were encrypted..."
 
         # First, identify keys that have ENC[ values in the original encrypted file
-        encrypted_keys=$(jq -r 'to_entries[] | select(.value | type == "string" and startswith("ENC[")) | .key' ${{ inputs.vars_file }})
+        encrypted_keys=$(jq -r 'to_entries[] | select(.value | type == "string" and startswith("ENC[")) | .key' ${{ inputs.input_file }})
 
         # Also handle array values that contain ENC[ patterns
-        encrypted_array_keys=$(jq -r 'to_entries[] | select(.value | type == "array" and (.[0] | type == "string" and startswith("ENC["))) | .key' ${{ inputs.vars_file }})
+        encrypted_array_keys=$(jq -r 'to_entries[] | select(.value | type == "array" and (.[0] | type == "string" and startswith("ENC["))) | .key' ${{ inputs.input_file }})
 
         # Combine both sets of keys
         all_encrypted_keys=$(echo -e "$encrypted_keys\n$encrypted_array_keys" | sort -u | grep -v '^$')
@@ -77,7 +78,7 @@ runs:
           # Handle string values
           decrypted_value=$(jq -r --arg key "$key" '.[$key] // empty | select(type == "string")' $decrypted_file)
           if [[ -n "$decrypted_value" && "$decrypted_value" != "null" ]]; then
-            echo $local_secret | sed 's/^ */::add-mask::/'
+            echo $decrypted_value | sed 's/^ */::add-mask::/'
             echo "Masked decrypted value for key: $key"
           fi
 
