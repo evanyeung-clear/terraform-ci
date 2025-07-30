@@ -1,0 +1,85 @@
+name: Decrypt SOPS
+description: "Decrypts a SOPS encrypted file and masks the values of encrypted variables from the output"
+
+inputs:
+  input_file:
+    description: "Path to the encrypted file"
+    required: true
+    type: string
+  output_file:
+    description: "Name of the output file"
+    required: false
+    type: string
+  sops_age_key:
+    description: "AGE key to decode the file with"
+    required: true
+    type: string
+
+outputs:
+  decrypted_file:
+    description: "Path to the decrypted file"
+
+runs:
+  using: composite
+
+  steps:
+    - name: Setup SOPS
+      shell: bash
+      run: |
+        # Download the binary
+        curl -Lo sops https://github.com/getsops/sops/releases/download/v3.10.2/sops-v3.10.2.linux.amd64
+
+        # Verify the binary using the checksums file
+        echo "79b0f844237bd4b0446e4dc884dbc1765fc7dedc3968f743d5949c6f2e701739  sops" > checksum.txt
+        if ! shasum -c checksum.txt; then
+          echo "::error title=Checksum failed::The file downloaded does not match the checksum provided."
+          exit 1
+        fi
+
+        # Add current working directory to PATH
+        echo $(pwd) >> "$GITHUB_PATH"
+
+        # Make the binary executable
+        chmod +x sops
+
+    - name: Decrypt file
+      env:
+        SOPS_AGE_KEY: ${{ secrets.sops_age_key }}
+      shell: bash
+      run: |
+        decrypted_file = ${{ inputs.output_file || 'decrypted.json' }}
+
+        sops -d ${{ inputs.input_file }} > $decrypted_file
+
+        # Set the decrypted file as output
+        echo "decrypted_file=$decrypted_file" >> $GITHUB_OUTPUT
+
+        # find enc vars and mask from github output
+        echo "Masking decrypted values of variables that were encrypted..."
+
+        # First, identify keys that have ENC[ values in the original encrypted file
+        encrypted_keys=$(jq -r 'to_entries[] | select(.value | type == "string" and startswith("ENC[")) | .key' ${{ inputs.vars_file }})
+
+        # Also handle array values that contain ENC[ patterns
+        encrypted_array_keys=$(jq -r 'to_entries[] | select(.value | type == "array" and (.[0] | type == "string" and startswith("ENC["))) | .key' ${{ inputs.vars_file }})
+
+        # Combine both sets of keys
+        all_encrypted_keys=$(echo -e "$encrypted_keys\n$encrypted_array_keys" | sort -u | grep -v '^$')
+
+        # Now mask the decrypted values of those keys from the decrypted file
+        for key in $all_encrypted_keys; do
+          # Handle string values
+          decrypted_value=$(jq -r --arg key "$key" '.[$key] // empty | select(type == "string")' $decrypted_file)
+          if [[ -n "$decrypted_value" && "$decrypted_value" != "null" ]]; then
+            echo $local_secret | sed 's/^ */::add-mask::/'
+            echo "Masked decrypted value for key: $key"
+          fi
+
+          # Handle array values - mask each element
+          jq -r --arg key "$key" '.[$key][]? // empty' $decrypted_file 2>/dev/null | while read -r array_value; do
+            if [[ -n "$array_value" && "$array_value" != "null" ]]; then
+              echo "::add-mask::$array_value"
+              echo "Masked decrypted array value for key: $key"
+            fi
+          done
+        done

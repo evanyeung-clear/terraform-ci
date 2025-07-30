@@ -54,69 +54,16 @@ jobs:
         with:
           terraform_version: ${{ steps.terraform-version.outputs.version || null }}
 
-      - name: Setup SOPS
-        if: inputs.vars_file != '' && env.SOPS_AGE_KEY != ''
-        env:
-          SOPS_AGE_KEY: ${{ secrets.sops_age_key }}
-        run: |
-          # Download the binary
-          curl -Lo sops https://github.com/getsops/sops/releases/download/v3.10.2/sops-v3.10.2.linux.amd64
-
-          # Verify the binary using the checksums file
-          echo "79b0f844237bd4b0446e4dc884dbc1765fc7dedc3968f743d5949c6f2e701739  sops" > checksum.txt
-          if ! shasum -c checksum.txt; then
-            echo "::error title=Checksum failed::The file downloaded does not match the checksum provided."
-            exit 1
-          fi
-
-          # Add current working directory to PATH
-          echo $(pwd) >> "$GITHUB_PATH"
-
-          # Make the binary executable
-          chmod +x sops
-
       - name: Decrypt Terraform variables
         id: decrypt
+        uses: ./.github/shared-actions/decrypt-sops
         if: inputs.vars_file != '' && env.SOPS_AGE_KEY != ''
         env:
           SOPS_AGE_KEY: ${{ secrets.sops_age_key }}
-        run: |
-          decrypted_variables_file="terraform.tfvars.json"
-
-          sops -d ${{ inputs.vars_file }} > $decrypted_variables_file
-
-          # Set the decrypted file as output
-          echo "decrypted_file=$decrypted_variables_file" >> $GITHUB_OUTPUT
-
-          # find enc vars and mask from github output
-          echo "Masking decrypted values of variables that were encrypted..."
-
-          # First, identify keys that have ENC[ values in the original encrypted file
-          encrypted_keys=$(jq -r 'to_entries[] | select(.value | type == "string" and startswith("ENC[")) | .key' ${{ inputs.vars_file }})
-
-          # Also handle array values that contain ENC[ patterns
-          encrypted_array_keys=$(jq -r 'to_entries[] | select(.value | type == "array" and (.[0] | type == "string" and startswith("ENC["))) | .key' ${{ inputs.vars_file }})
-
-          # Combine both sets of keys
-          all_encrypted_keys=$(echo -e "$encrypted_keys\n$encrypted_array_keys" | sort -u | grep -v '^$')
-
-          # Now mask the decrypted values of those keys from the decrypted file
-          for key in $all_encrypted_keys; do
-            # Handle string values
-            decrypted_value=$(jq -r --arg key "$key" '.[$key] // empty | select(type == "string")' $decrypted_variables_file)
-            if [[ -n "$decrypted_value" && "$decrypted_value" != "null" ]]; then
-              echo $local_secret | sed 's/^ */::add-mask::/'
-              echo "Masked decrypted value for key: $key"
-            fi
-
-            # Handle array values - mask each element
-            jq -r --arg key "$key" '.[$key][]? // empty' $decrypted_variables_file 2>/dev/null | while read -r array_value; do
-              if [[ -n "$array_value" && "$array_value" != "null" ]]; then
-                echo "::add-mask::$array_value"
-                echo "Masked decrypted array value for key: $key"
-              fi
-            done
-          done
+        with:
+          input_file: ${{ inputs.vars_file }}
+          output_file: terraform.tfvars.json
+          sops_age_key: ${{ secrets.sops_age_key }}
 
       - name: Initialize Terraform
         env:
