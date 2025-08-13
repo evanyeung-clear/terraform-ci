@@ -3,6 +3,11 @@ name: Terraform Plan
 on:
   workflow_call:
     inputs:
+      runner:
+        description: "Runner to use"
+        required: false
+        default: "ubuntu-latest"
+        type: string
       directory:
         description: "Directory to run Terraform in"
         required: true
@@ -22,7 +27,7 @@ on:
 
 jobs:
   plan:
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runner }}
     permissions:
       pull-requests: write
       statuses: write
@@ -219,7 +224,7 @@ jobs:
 
   # test:
   #   if: ${{ !always() }}
-  #   runs-on: ubuntu-latest
+  #   runs-on: ${{ inputs.runner }}
   #   needs: run
   #   steps:
   #     - name: Check Terraform Plan Output

@@ -3,6 +3,11 @@ name: Release lock on merge
 on:
   workflow_call:
     inputs:
+      runner:
+        description: "Runner to use"
+        required: false
+        default: ubuntu-latest
+        type: string
       directory:
         description: "Directory to run Terraform in"
         required: true
@@ -29,7 +34,7 @@ jobs:
     if: >
       inputs.pr_merged == true && 
       inputs.target_branch == github.event.repository.default_branch
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runner }}
     permissions:
       pull-requests: write
       contents: write

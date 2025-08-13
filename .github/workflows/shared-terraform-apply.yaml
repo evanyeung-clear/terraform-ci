@@ -3,6 +3,11 @@ name: Terraform Apply
 on:
   workflow_call:
     inputs:
+      runner:
+        description: "Runner to use"
+        required: false
+        default: ubuntu-latest
+        type: string
       directory:
         description: "Directory to run Terraform in"
         required: true
@@ -21,7 +26,7 @@ on:
         required: false
 jobs:
   lock:
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runner }}
     permissions:
       pull-requests: write
       contents: write
@@ -163,7 +168,7 @@ jobs:
           branch: ${{ steps.pr.outputs.branch }}
 
   apply:
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runner }}
     needs: lock
     permissions:
       contents: write
@@ -416,7 +421,7 @@ jobs:
 
   # TODO: re-apply main if deployment fails
   revert:
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runner }}
     needs: [lock, apply]
     if: failure() && needs.apply.result == 'failure'
     permissions:
