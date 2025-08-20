@@ -1,0 +1,6 @@
+{
+  "dependencies": {
+    "@tree-sitter-grammars/tree-sitter-hcl": "^1.2.0",
+    "tree-sitter": "^0.25.0"
+  }
+}
