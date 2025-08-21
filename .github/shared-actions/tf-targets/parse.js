@@ -76,7 +76,7 @@ function findChangedBlocks(filePath, changedLines, sourceCode = null) {
       .filter(n => n.type === 'string_lit')
       .map(n => source.slice(n.startIndex, n.endIndex).replace(/"/g, ''));
 
-    const blockName = blockLabels.join(' ');
+    const blockName = blockLabels.join('.');
 
     const startLine = block.startPosition.row + 1;
     const endLine = block.endPosition.row + 1;
@@ -111,9 +111,7 @@ function main() {
     for (const block of blocks) {
       const key = `${file}:${block.startLine}`;
       if (!printed.has(key)) {
-        console.log(`-target=""`)
-        // console.log(`\n# ${file}:${block.startLine}-${block.endLine} (${block.blockType})`);
-        // console.log(block.body.trim());
+        console.log(`-target="${block.blockName}"`)
         printed.add(key);
       }
     }
