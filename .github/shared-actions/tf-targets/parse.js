@@ -101,7 +101,7 @@ function main() {
   const baseBranch = process.argv[2] || 'main';
   const changes = getGitDiffLines(baseBranch);
 
-  const printed = new Set();
+  const targets = new Set();
 
   for (const [file, lines] of Object.entries(changes)) {
     if (!fs.existsSync(file)) continue;
@@ -109,16 +109,17 @@ function main() {
     const blocks = findChangedBlocks(file, lines);
 
     for (const block of blocks) {
-      const key = `${file}:${block.startLine}`;
-      if (!printed.has(key)) {
-        console.log(`-target="${block.blockName}"`)
-        printed.add(key);
-      }
+      const key = block.blockName;
+      if (targets.has(key)) { break; } // Avoid duplicates
+
+      targets.add(key);
     }
   }
 
-  if (printed.size === 0) {
+  if (targets.size === 0) {
     console.log("No changed resource/module blocks detected.");
+  } else {
+    console.log(Array.from(targets).map(target => `-target="${target}"`).join(' '));
   }
 }
 
