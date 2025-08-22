@@ -10,6 +10,11 @@ const parser = new Parser();
 parser.setLanguage(HCL);
 
 function getGitDiffLines(baseBranch = 'main') {
+  const mainBranch = execSync(
+    `git fetch origin ${baseBranch}:${baseBranch}`,
+    { encoding: 'utf-8' }
+  );
+
   const output = execSync(
     // `git diff --unified=0 --no-color ${baseBranch} -- '*.tf'`,
     `git diff --relative --unified=0 --no-color $(git merge-base HEAD ${baseBranch}) -- '*.tf'`,
