@@ -84,6 +84,8 @@ jobs:
       - name: Get Changed Terraform Targets
         uses: ./.github/shared-actions/tf-targets
         id: targets
+        with:
+          working_directory: ${{ inputs.directory }}
 
       - name: Run Terraform Plan
         id: plan
