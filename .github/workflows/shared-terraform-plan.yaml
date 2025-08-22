@@ -109,7 +109,7 @@ jobs:
           fi
 
           # Only target resources that are modified in code
-          targets=$(terraform plan -refresh=false -json | jq -r '.change.resource.addr|select(.!=null)|"-target="+.')
+          targets=${{ steps.targets.outputs.targets }}
           echo "Targets: $targets"
           cmd="$cmd $targets"
 

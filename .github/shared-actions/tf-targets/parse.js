@@ -5,7 +5,6 @@ const fs = require('fs');
 const Parser = require('tree-sitter');
 const HCL = require('@tree-sitter-grammars/tree-sitter-hcl');
 const core = require('@actions/core');
-const github = require('@actions/github');
 
 const parser = new Parser();
 parser.setLanguage(HCL);
@@ -13,7 +12,7 @@ parser.setLanguage(HCL);
 function getGitDiffLines(baseBranch = 'main') {
   const output = execSync(
     // `git diff --unified=0 --no-color ${baseBranch} -- '*.tf'`,
-    `git diff --relative --unified=0 --no-color $(git merge-base HEAD main) -- '*.tf'`,
+    `git diff --relative --unified=0 --no-color $(git merge-base HEAD ${baseBranch}) -- '*.tf'`,
     { encoding: 'utf-8' }
   );
 
@@ -98,7 +97,7 @@ function findChangedBlocks(filePath, changedLines) {
 }
 
 function main() {
-  const baseBranch = process.argv[2] || 'main';
+  const baseBranch = core.getInput("branch") || 'main';
   const changes = getGitDiffLines(baseBranch);
 
   const targets = new Set();
@@ -107,6 +106,7 @@ function main() {
     if (!fs.existsSync(file)) continue;
 
     const blocks = findChangedBlocks(file, lines);
+    core.info(blocks);
 
     for (const block of blocks) {
       const key = block.blockName;
@@ -117,7 +117,7 @@ function main() {
   }
 
   if (targets.size === 0) {
-    console.log("No changed resource/module blocks detected.");
+    core.info("No changed resource/module blocks detected.");
   } else {
     const targetString = (Array.from(targets).map(target => `-target="${target}"`).join(' '));
     core.info(`Detected changed Terraform targets:\n${targetString}`);
