@@ -1,0 +1,31 @@
+name: Get Changed Terraform Targets
+description: 'Action to create and upload a badge to the repository'
+
+inputs:
+  working_directory:
+    type: string
+    description: 'Working directory for the action'
+    required: true
+  branch:
+    type: string
+    description: 'Branch to compare against'
+
+runs:
+  using: composite
+
+  steps:
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: 22
+
+    - name: Install dependencies
+      shell: bash
+      working-directory: ${{github.action_path}}
+      run: npm ci
+
+    - name: Get changed Terraform targets
+      shell: bash
+      working-directory: ${{inputs.working_directory}}
+      run: |
+        ${{github.action_path}}\parse.js

@@ -3,6 +3,11 @@ name: Terraform Plan
 on:
   workflow_call:
     inputs:
+      runner:
+        description: "Runner to use"
+        required: false
+        default: "ubuntu-latest"
+        type: string
       directory:
         description: "Directory to run Terraform in"
         required: true
@@ -22,7 +27,7 @@ on:
 
 jobs:
   plan:
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runner }}
     permissions:
       pull-requests: write
       statuses: write
@@ -75,6 +80,10 @@ jobs:
           terraform init -input=false
           terraform fmt -check
           terraform validate -no-color
+      
+      - name: Get Changed Terraform Targets
+        uses: ./.github/shared-actions/tf-targets
+        id: targets
 
       - name: Run Terraform Plan
         id: plan
@@ -100,7 +109,7 @@ jobs:
           fi
 
           # Only target resources that are modified in code
-          targets=$(terraform plan -refresh=false -json | jq -r '.change.resource.addr|select(.!=null)|"-target="+.')
+          targets=${{ steps.targets.outputs.targets }}
           echo "Targets: $targets"
           cmd="$cmd $targets"
 
@@ -219,7 +228,7 @@ jobs:
 
   # test:
   #   if: ${{ !always() }}
-  #   runs-on: ubuntu-latest
+  #   runs-on: ${{ inputs.runner }}
   #   needs: run
   #   steps:
   #     - name: Check Terraform Plan Output
