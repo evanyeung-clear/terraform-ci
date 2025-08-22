@@ -12,7 +12,7 @@ parser.setLanguage(HCL);
 function getGitDiffLines(baseBranch = 'main') {
   const output = execSync(
     // `git diff --unified=0 --no-color ${baseBranch} -- '*.tf'`,
-    `git diff --unified=0 --no-color $(git merge-base HEAD main) -- '*.tf'`,
+    `git diff --relative --unified=0 --no-color $(git merge-base HEAD main) -- '*.tf'`,
     { encoding: 'utf-8' }
   );
 
@@ -36,9 +36,8 @@ function getGitDiffLines(baseBranch = 'main') {
   return fileLineMap;
 }
 
-function findChangedBlocks(filePath, changedLines, sourceCode = null) {
-  const fs = require('fs');
-  const source = sourceCode || fs.readFileSync(filePath, 'utf8');
+function findChangedBlocks(filePath, changedLines) {
+  const source = fs.readFileSync(filePath, 'utf8');
   const tree = parser.parse(source);
   const results = [];
 
@@ -110,7 +109,7 @@ function main() {
 
     for (const block of blocks) {
       const key = block.blockName;
-      if (targets.has(key)) { break; } // Avoid duplicates
+      if (targets.has(key)) { continue; } // Avoid duplicates
 
       targets.add(key);
     }
