@@ -2,9 +2,10 @@
 
 const { execSync } = require('child_process');
 const fs = require('fs');
-const path = require('path');
 const Parser = require('tree-sitter');
 const HCL = require('@tree-sitter-grammars/tree-sitter-hcl');
+const core = require('@actions/core');
+const github = require('@actions/github');
 
 const parser = new Parser();
 parser.setLanguage(HCL);
@@ -118,7 +119,9 @@ function main() {
   if (targets.size === 0) {
     console.log("No changed resource/module blocks detected.");
   } else {
-    console.log(Array.from(targets).map(target => `-target="${target}"`).join(' '));
+    const targetString = (Array.from(targets).map(target => `-target="${target}"`).join(' '));
+    core.info(`Detected changed Terraform targets:\n${targetString}`);
+    core.setOutput("targets", targetString);
   }
 }
 

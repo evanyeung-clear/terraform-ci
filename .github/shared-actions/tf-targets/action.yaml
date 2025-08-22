@@ -2,10 +2,13 @@ name: Get Changed Terraform Targets
 description: 'Action to create and upload a badge to the repository'
 
 inputs:
-  github_token:
+  working_directory:
     type: string
-    description: 'GitHub token for authentication'
+    description: 'Working directory for the action'
     required: true
+  branch:
+    type: string
+    description: 'Branch to compare against'
 
 runs:
   using: composite
@@ -23,5 +26,6 @@ runs:
 
     - name: Get changed Terraform targets
       shell: bash
-      working-directory: ${{github.action_path}}
+      working-directory: ${{inputs.working_directory}}
       run: |
+        ${{github.action_path}}\parse.js

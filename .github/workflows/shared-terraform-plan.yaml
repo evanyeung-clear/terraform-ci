@@ -80,6 +80,10 @@ jobs:
           terraform init -input=false
           terraform fmt -check
           terraform validate -no-color
+      
+      - name: Get Changed Terraform Targets
+        uses: ./.github/shared-actions/tf-targets
+        id: targets
 
       - name: Run Terraform Plan
         id: plan
