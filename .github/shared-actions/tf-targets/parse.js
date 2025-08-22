@@ -15,6 +15,12 @@ function getGitDiffLines(baseBranch = 'main') {
     { encoding: 'utf-8' }
   );
 
+  const diff = execSync(
+    "git diff",
+    { encoding: 'utf-8' }
+  );
+  core.info(diff);
+  
   const output = execSync(
     // `git diff --unified=0 --no-color ${baseBranch} -- '*.tf'`,
     `git diff --relative --unified=0 --no-color $(git merge-base HEAD ${baseBranch}) -- '*.tf'`,
