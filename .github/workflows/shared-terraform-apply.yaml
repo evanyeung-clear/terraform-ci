@@ -1,502 +1,520 @@
 name: Terraform Apply
 
 on:
-    workflow_call:
-        inputs:
-            directory:
-                description: "Directory to run Terraform in"
-                required: true
-                type: string
-            terraform_version:
-                description: "Terraform version to use"
-                required: false
-                type: string
-            vars_file:
-                description: "Optional path to Terraform variables file relative to the directory"
-                required: false
-                type: string
-        secrets:
-            sops_age_key:
-                description: "Optional if you need to decode the variables file with SOPS"
-                required: false
+  workflow_call:
+    inputs:
+      runner:
+        description: "Runner to use"
+        required: false
+        default: ubuntu-latest
+        type: string
+      directory:
+        description: "Directory to run Terraform in"
+        required: true
+        type: string
+      terraform_version:
+        description: "Terraform version to use"
+        required: false
+        type: string
+      vars_file:
+        description: "Optional path to Terraform variables file relative to the directory"
+        required: false
+        type: string
+    secrets:
+      sops_age_key:
+        description: "Optional if you need to decode the variables file with SOPS"
+        required: false
 jobs:
-    lock:
-        runs-on: ubuntu-latest
-        permissions:
-            pull-requests: write
-            contents: write
+  lock:
+    runs-on: ${{ inputs.runner }}
+    permissions:
+      pull-requests: write
+      contents: write
 
-        outputs:
-            head_sha: ${{ steps.pr.outputs.head_sha }}
-            branch: ${{ steps.pr.outputs.branch }}
+    outputs:
+      head_sha: ${{ steps.pr.outputs.head_sha }}
+      branch: ${{ steps.pr.outputs.branch }}
 
-        steps:
-            - name: Get PR and commit SHA
-              id: pr
-              uses: actions/github-script@v7
-              with:
-                  script: |
-                      const { data: pr } = await github.rest.pulls.get({
-                        owner: context.repo.owner,
-                        repo: context.repo.repo,
-                        pull_number: context.issue.number
-                      });
+    steps:
+      - name: Get PR and commit SHA
+        id: pr
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { data: pr } = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number
+            });
 
-                      core.setOutput("head_sha", pr.head.sha);
-                      core.setOutput("branch", pr.head.ref);
+            core.setOutput("head_sha", pr.head.sha);
+            core.setOutput("branch", pr.head.ref);
 
-            - name: Check status checks passed # assume tf plan is a part of the status checks
-              uses: actions/github-script@v7
-              with:
-                  script: |
-                      // Get status API checks
-                      const { data: combinedStatus } = await github.rest.repos.getCombinedStatusForRef({
-                        owner: context.repo.owner,
-                        repo: context.repo.repo,
-                        ref: "${{ steps.pr.outputs.head_sha }}"
-                      });
+      - name: Check status checks passed # assume tf plan is a part of the status checks
+        uses: actions/github-script@v7
+        with:
+          script: |
+            // Get status API checks
+            const { data: combinedStatus } = await github.rest.repos.getCombinedStatusForRef({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref: "${{ steps.pr.outputs.head_sha }}"
+            });
 
-                      // Get Checks API checks (includes GitHub Actions jobs)
-                      const { data: checks } = await github.rest.checks.listForRef({
-                        owner: context.repo.owner,
-                        repo: context.repo.repo,
-                        ref: "${{ steps.pr.outputs.head_sha }}"
-                      });
+            // Get Checks API checks (includes GitHub Actions jobs)
+            const { data: checks } = await github.rest.checks.listForRef({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref: "${{ steps.pr.outputs.head_sha }}"
+            });
 
-                      console.log('Combined Statuses:', combinedStatus.statuses.map(s => s.context));
-                      console.log('Checks:', checks.check_runs.map(c => c.name));
+            console.log('Combined Statuses:', combinedStatus.statuses.map(s => s.context));
+            console.log('Checks:', checks.check_runs.map(c => c.name));
 
-                      // Filter out ignored status contexts
-                      const ignored = ['terraform-apply', 'another-check-to-ignore'];
-                      const requiredStatuses = combinedStatus.statuses.filter(status => !ignored.includes(status.context));
-                      const failedStatuses = requiredStatuses.filter(status => status.state !== 'success');
+            // Filter out ignored status contexts
+            const ignored = ['terraform-apply', 'another-check-to-ignore'];
+            const requiredStatuses = combinedStatus.statuses.filter(status => !ignored.includes(status.context));
+            const failedStatuses = requiredStatuses.filter(status => status.state !== 'success');
 
-                      // Filter out ignored check names
-                      const requiredChecks = checks.check_runs.filter(check => !ignored.includes(check.name));
-                      const failedChecks = requiredChecks.filter(check => check.conclusion !== 'success' && check.conclusion !== 'neutral' && check.conclusion !== 'skipped');
+            // Filter out ignored check names
+            const requiredChecks = checks.check_runs.filter(check => !ignored.includes(check.name));
+            const failedChecks = requiredChecks.filter(check => check.conclusion !== 'success' && check.conclusion !== 'neutral' && check.conclusion !== 'skipped');
 
-                      if (failedStatuses.length > 0 || failedChecks.length > 0) {
-                        console.log('Failed statuses:', failedStatuses.map(s => s.context));
-                        console.log('Failed checks:', failedChecks.map(c => c.name));
-                        core.setFailed('Terraform apply cannot be run yet, not all required status checks or checks have passed.');
-                      }
+            if (failedStatuses.length > 0 || failedChecks.length > 0) {
+              console.log('Failed statuses:', failedStatuses.map(s => s.context));
+              console.log('Failed checks:', failedChecks.map(c => c.name));
+              core.setFailed('Terraform apply cannot be run yet, not all required status checks or checks have passed.');
+            }
 
-            # ignore for now while testing
-            # - name: Check PR is approved
-            #   uses: actions/github-script@v7
-            #   with:
-            #     script: |
-            #       const { data: reviews } = await github.rest.pulls.listReviews({
-            #         owner: context.repo.owner,
-            #         repo: context.repo.repo,
-            #         pull_number: context.issue.number
-            #       });
+      # ignore for now while testing
+      # - name: Check PR is approved
+      #   uses: actions/github-script@v7
+      #   with:
+      #     script: |
+      #       const { data: reviews } = await github.rest.pulls.listReviews({
+      #         owner: context.repo.owner,
+      #         repo: context.repo.repo,
+      #         pull_number: context.issue.number
+      #       });
 
-            #       const approved = reviews.some(review => review.state === 'APPROVED');
-            #       if (!approved) {
-            #         core.setFailed('Terraform apply cannot be run yet, the PR is not approved.');
-            #       }
+      #       const approved = reviews.some(review => review.state === 'APPROVED');
+      #       if (!approved) {
+      #         core.setFailed('Terraform apply cannot be run yet, the PR is not approved.');
+      #       }
 
-            - name: Check deployment lock
-              uses: forevanyeung/lock@e43a0b2920fca2eb45f02bde126d32e09949d419
-              id: lock
-              with:
-                  mode: check
-                  environment: ${{ inputs.directory }}
+      - name: Check deployment lock
+        uses: forevanyeung/lock@e43a0b2920fca2eb45f02bde126d32e09949d419
+        id: lock
+        with:
+          mode: check
+          environment: ${{ inputs.directory }}
 
-            - name: Check if lock is for this branch
-              if: steps.lock.outputs.locked == 'true'
-              uses: actions/github-script@v7
-              id: lock-check
-              with:
-                  script: |
-                      const lockedBranch = `${{ steps.lock.outputs.branch }}`;
-                      const currentBranch = `${{ steps.pr.outputs.branch }}`;
-                      console.log(`Locked branch: ${lockedBranch}, Current branch: ${currentBranch}`);
+      - name: Check if lock is for this branch
+        if: steps.lock.outputs.locked == 'true'
+        uses: actions/github-script@v7
+        id: lock-check
+        with:
+          script: |
+            const lockedBranch = `${{ steps.lock.outputs.branch }}`;
+            const currentBranch = `${{ steps.pr.outputs.branch }}`;
+            console.log(`Locked branch: ${lockedBranch}, Current branch: ${currentBranch}`);
 
-                      // Check if the lock is held by this branch
-                      if (lockedBranch === currentBranch) {
-                        console.log('Lock is held by this branch, continuing.');
-                        core.setOutput("locked", "false");
-                      } else {
-                        console.log(`Lock is held by branch ${lockedBranch}, cannot proceed.`);
-                        core.setOutput("locked", "true");
-                      }
+            // Check if the lock is held by this branch
+            if (lockedBranch === currentBranch) {
+              console.log('Lock is held by this branch, continuing.');
+              core.setOutput("locked", "false");
+            } else {
+              console.log(`Lock is held by branch ${lockedBranch}, cannot proceed.`);
+              core.setOutput("locked", "true");
+            }
 
-            - name: Comment if unable to obtain lock
-              if: steps.lock-check.outputs.locked == 'true'
-              uses: actions/github-script@v7
-              with:
-                  script: |
-                      // Rewrite the link to use redirect.github.com subdomain
-                      const originalLink = `${{ steps.lock.outputs.link }}`;
-                      let redirectLink = originalLink.replace(
-                        /^https:\/\/github\.com\//,
-                        'https://redirect.github.com/'
-                      );
+      - name: Comment if unable to obtain lock
+        if: steps.lock-check.outputs.locked == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            // Rewrite the link to use redirect.github.com subdomain
+            const originalLink = `${{ steps.lock.outputs.link }}`;
+            let redirectLink = originalLink.replace(
+              /^https:\/\/github\.com\//,
+              'https://redirect.github.com/'
+            );
 
-                      var body = `
-                      ⛔ **Failed to acquire deployment lock** — another deployment is currently in progress.
+            var body = `
+            ⛔ **Failed to acquire deployment lock** — another deployment is currently in progress.
 
-                      Only one deployment can run at a time to avoid conflicts. Please wait for the active deployment to complete before trying again.
+            Only one deployment can run at a time to avoid conflicts. Please wait for the active deployment to complete before trying again.
 
-                      🔗 [View the blocking deployment](${redirectLink})              
-                      `
+            🔗 [View the blocking deployment](${redirectLink})              
+            `
 
-                      github.rest.issues.createComment({
-                        issue_number: context.issue.number,
-                        owner: context.repo.owner,
-                        repo: context.repo.repo,
-                        body: body
-                      })
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: body
+            })
 
-                      // exit early
-                      core.setFailed('Failed to acquire lock.');
+            // exit early
+            core.setFailed('Failed to acquire lock.');
 
-            - name: Get deployment lock
-              if: steps.lock.outputs.locked == 'false' || steps.lock-check.outputs.locked == 'false'
-              uses: forevanyeung/lock@e43a0b2920fca2eb45f02bde126d32e09949d419
-              with:
-                  mode: lock
-                  environment: ${{ inputs.directory }}
-                  link: ${{ github.event.comment.html_url }}
-                  branch: ${{ steps.pr.outputs.branch }}
+      - name: Get deployment lock
+        if: steps.lock.outputs.locked == 'false' || steps.lock-check.outputs.locked == 'false'
+        uses: forevanyeung/lock@e43a0b2920fca2eb45f02bde126d32e09949d419
+        with:
+          mode: lock
+          environment: ${{ inputs.directory }}
+          link: ${{ github.event.comment.html_url }}
+          branch: ${{ steps.pr.outputs.branch }}
 
-    apply:
-        runs-on: ubuntu-latest
-        needs: lock
-        permissions:
-            contents: write
-            pull-requests: write
-            statuses: write
-        defaults:
-            run:
-                working-directory: ${{ inputs.directory }}
+  apply:
+    runs-on: ${{ inputs.runner }}
+    needs: lock
+    permissions:
+      contents: write
+      pull-requests: write
+      statuses: write
+    defaults:
+      run:
+        working-directory: ${{ inputs.directory }}
 
-        steps:
-            - name: comment
-              uses: actions/github-script@v7
-              id: comment
-              with:
-                  script: |
-                      const { data: comment } = await github.rest.issues.createComment({
-                        issue_number: context.issue.number,
-                        owner: context.repo.owner,
-                        repo: context.repo.repo,
-                        body: "🚀 Deployment started..."
-                      })
+    steps:
+      - name: comment
+        uses: actions/github-script@v7
+        id: comment
+        with:
+          script: |
+            const { data: comment } = await github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: "🚀 Deployment started..."
+            })
 
-                      core.setOutput("id", comment.id)
+            core.setOutput("id", comment.id)
 
-            - name: Set commit status to pending
-              uses: actions/github-script@v7
-              with:
-                  script: |
-                      const runUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+      - name: Set commit status to pending
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const runUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
 
-                      github.rest.repos.createCommitStatus({
-                        owner: context.repo.owner,
-                        repo: context.repo.repo,
-                        sha: "${{ needs.lock.outputs.head_sha }}",
-                        state: "pending",
-                        target_url: runUrl, 
-                        context: "terraform-apply",
-                        description: "Pending - in progress"
-                      });
+            github.rest.repos.createCommitStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              sha: "${{ needs.lock.outputs.head_sha }}",
+              state: "pending",
+              target_url: runUrl, 
+              context: "terraform-apply",
+              description: "Pending - in progress"
+            });
 
-            - name: Checkout pull request
-              uses: actions/checkout@v4
-              with:
-                  ref: refs/pull/${{ github.event.issue.number }}/head
+      - name: Checkout pull request
+        uses: actions/checkout@v4
+        with:
+          ref: refs/pull/${{ github.event.issue.number }}/head
 
-            - name: Check for .terraform-version file
-              id: terraform-version
-              run: |
-                  if [ -n "${{ inputs.terraform_version }}" ]; then
-                    echo "Using terraform_version input: ${{ inputs.terraform_version }}"
-                    echo "version=${{ inputs.terraform_version }}" >> $GITHUB_OUTPUT
-                  elif [ -f ".terraform-version" ]; then
-                    version=$(cat .terraform-version | tr -d '[:space:]')
-                    echo "Found .terraform-version file with version: $version"
-                    echo "version=$version" >> $GITHUB_OUTPUT
-                  else
-                    echo "No terraform version specified, using latest"
-                    echo "version=" >> $GITHUB_OUTPUT
-                  fi
+      - name: Check for .terraform-version file
+        id: terraform-version
+        run: |
+          if [ -n "${{ inputs.terraform_version }}" ]; then
+            echo "Using terraform_version input: ${{ inputs.terraform_version }}"
+            echo "version=${{ inputs.terraform_version }}" >> $GITHUB_OUTPUT
+          elif [ -f ".terraform-version" ]; then
+            version=$(cat .terraform-version | tr -d '[:space:]')
+            echo "Found .terraform-version file with version: $version"
+            echo "version=$version" >> $GITHUB_OUTPUT
+          else
+            echo "No terraform version specified, using latest"
+            echo "version=" >> $GITHUB_OUTPUT
+          fi
 
-            - name: Setup Terraform
-              uses: hashicorp/setup-terraform@v3
-              with:
-                  terraform_version: ${{ steps.terraform-version.outputs.version || null }}
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ steps.terraform-version.outputs.version || null }}
 
-            - name: Decrypt Terraform variables
-              id: decrypt
-              uses: ./.github/shared-actions/decrypt-sops
-              if: inputs.vars_file != '' && env.SOPS_AGE_KEY != ''
-              env:
-                  SOPS_AGE_KEY: ${{ secrets.sops_age_key }}
-              with:
-                  working_directory: ${{ inputs.directory }}
-                  input_file: ${{ inputs.vars_file }}
-                  output_file: terraform.tfvars.json
-                  sops_age_key: ${{ secrets.sops_age_key }}
+      - name: Decrypt Terraform variables
+        id: decrypt
+        uses: ./.github/shared-actions/decrypt-sops
+        if: inputs.vars_file != '' && env.SOPS_AGE_KEY != ''
+        env:
+          SOPS_AGE_KEY: ${{ secrets.sops_age_key }}
+        with:
+          working_directory: ${{ inputs.directory }}
+          input_file: ${{ inputs.vars_file }}
+          output_file: terraform.tfvars.json
+          sops_age_key: ${{ secrets.sops_age_key }}
 
-            - name: Initialize Terraform
-              env:
-                  TF_TOKEN_APP_TERRAFORM_IO: ${{ secrets.TF_TOKEN_APP_TERRAFORM_IO }}
-                  TF_CLOUD_ORGANIZATION: ${{ secrets.TF_CLOUD_ORGANIZATION }}
-                  TF_WORKSPACE: ${{ inputs.directory }}
-              run: |
-                  terraform init -input=false
-                  terraform fmt -check
-                  terraform validate -no-color
+      - name: Initialize Terraform
+        env:
+          TF_TOKEN_APP_TERRAFORM_IO: ${{ secrets.TF_TOKEN_APP_TERRAFORM_IO }}
+          TF_CLOUD_ORGANIZATION: ${{ secrets.TF_CLOUD_ORGANIZATION }}
+          TF_WORKSPACE: ${{ inputs.directory }}
+        run: |
+          terraform init -input=false
+          terraform fmt -check
+          terraform validate -no-color
 
-            - name: Run Terraform Apply
-              id: apply
-              env:
-                  TF_TOKEN_APP_TERRAFORM_IO: ${{ secrets.TF_TOKEN_APP_TERRAFORM_IO }}
-                  TF_CLOUD_ORGANIZATION: ${{ secrets.TF_CLOUD_ORGANIZATION }}
-                  TF_WORKSPACE: ${{ inputs.directory }}
-              run: |
-                  # Build terraform apply command based on vars file and SOPS usage
-                  cmd="terraform apply -no-color -input=false -auto-approve"
+      - name: Get Changed Terraform Targets
+        uses: ./.github/shared-actions/tf-targets
+        id: targets
+        with:
+          working_directory: ${{ inputs.directory }}
 
-                  # Add vars file if specified
-                  if [[ -n "${{ inputs.vars_file }}" ]]; then
-                    if [[ -n "${{ secrets.sops_age_key }}" && -n "${{ steps.decrypt.outputs.decrypted_file }}" ]]; then
-                      # Use decrypted file if SOPS was used
-                      cmd="$cmd -var-file=${{ steps.decrypt.outputs.decrypted_file }}"
-                      echo "Using SOPS-decrypted vars file: ${{ steps.decrypt.outputs.decrypted_file }}"
-                    else
-                      # Use original vars file if no SOPS
-                      cmd="$cmd -var-file=${{ inputs.vars_file }}"
-                      echo "Using vars file: ${{ inputs.vars_file }}"
-                    fi
-                  fi
+      - name: Run Terraform Apply
+        id: apply
+        env:
+          TF_TOKEN_APP_TERRAFORM_IO: ${{ secrets.TF_TOKEN_APP_TERRAFORM_IO }}
+          TF_CLOUD_ORGANIZATION: ${{ secrets.TF_CLOUD_ORGANIZATION }}
+          TF_WORKSPACE: ${{ inputs.directory }}
+        run: |
+          # Build terraform apply command based on vars file and SOPS usage
+          cmd="terraform apply -no-color -input=false -auto-approve"
 
-                  start=$(date +%s)
+          # Add vars file if specified
+          if [[ -n "${{ inputs.vars_file }}" ]]; then
+            if [[ -n "${{ secrets.sops_age_key }}" && -n "${{ steps.decrypt.outputs.decrypted_file }}" ]]; then
+              # Use decrypted file if SOPS was used
+              cmd="$cmd -var-file=${{ steps.decrypt.outputs.decrypted_file }}"
+              echo "Using SOPS-decrypted vars file: ${{ steps.decrypt.outputs.decrypted_file }}"
+            else
+              # Use original vars file if no SOPS
+              cmd="$cmd -var-file=${{ inputs.vars_file }}"
+              echo "Using vars file: ${{ inputs.vars_file }}"
+            fi
+          fi
 
-                  # handle errors and capture output
-                  set +e
-                  $cmd 2> >(tee tf.console.txt) > >(tee tf.console.txt)
-                  status=$?
-                  set -e
+          # Only target resources that are modified in code
+          targets=${{ steps.targets.outputs.targets }}
+          echo "Targets: $targets"
+          cmd="$cmd $targets"
 
-                  end=$(date +%s)
+          echo "Terraform command: $cmd"
 
-                  echo "duration=$((end - start))" >> $GITHUB_OUTPUT
-                  echo "cmd=$cmd" >> $GITHUB_OUTPUT
+          start=$(date +%s)
 
-                  if [ $status -ne 0 ]; then
-                    echo "Terraform apply failed."
-                    exit 1
-                  fi
+          # handle errors and capture output
+          set +e
+          $cmd 2> >(tee tf.console.txt) > >(tee tf.console.txt)
+          status=$?
+          set -e
 
-            - name: Tag commit on successful apply
-              run: |
-                  git config --global user.email "github-actions[bot]@users.noreply.github.com"
-                  git config --global user.name "github-actions[bot]"
-                  TAG="deploy-${{ inputs.directory }}"
-                  git tag "$TAG"
-                  git push --force origin "$TAG"
-              env:
-                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          end=$(date +%s)
 
-            - name: Update branch deployment badge
-              uses: ./.github/shared-actions/upload-badge
-              with:
-                  label: ${{ inputs.directory }} branch
-                  message: ${{ needs.lock.outputs.branch }}
-                  color: green
-                  style: flat-square
-                  filename: latest-${{ inputs.directory }}-branch.svg
-                  github_token: ${{ secrets.GITHUB_TOKEN }}
+          echo "duration=$((end - start))" >> $GITHUB_OUTPUT
+          echo "cmd=$cmd" >> $GITHUB_OUTPUT
 
-            - name: Format Terraform Apply Diff
-              if: always()
-              id: diff
-              run: |
-                  # Strip extra lines from tf.console.txt
-                  awk '
-                    /Terraform used the selected providers/ { found_start = 1 }
-                    found_start {
-                      print
-                      if (/^(Error:|Plan:|Apply complete!|No changes.|Success)/) { exit }
-                    }
-                  ' tf.console.txt > tf.console.stripped.txt || true
+          if [ $status -ne 0 ]; then
+            echo "Terraform apply failed."
+            exit 1
+          fi
 
-                  # Filter lines starting with "  # " and prepend diff-specific symbols based on specific keywords.
-                  # https://github.com/OP5dev/TF-via-PR
-                  grep '^  # ' tf.console.txt | sed \
-                    -e 's/^  # \(.* be created\)/+ \1/' \
-                    -e 's/^  # \(.* be destroyed\)/- \1/' \
-                    -e 's/^  # \(.* be updated\|.* be replaced\)/! \1/' \
-                    -e 's/^  # \(.* be read\)/~ \1/' \
-                    -e 's/^  # \(.*\)/# \1/' > tf.diff.txt || true
-                  awk '/^(Error:|Plan:|Apply complete!|No changes.|Success)/' tf.console.txt > tf.summary.txt
+      - name: Tag commit on successful apply
+        run: |
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "github-actions[bot]"
+          TAG="deploy-${{ inputs.directory }}"
+          git tag "$TAG"
+          git push --force origin "$TAG"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-            - name: Comment Terraform Apply
-              if: always()
-              uses: actions/github-script@v7
-              with:
-                  script: |
-                      const fs = require('fs');
-                      // Helper function to safely read files with a default value
-                      function safeReadFile(filePath, defaultContent = '') {
-                        try {
-                          return fs.readFileSync(filePath, 'utf8');
-                        } catch (error) {
-                          console.log(`Warning: Could not read file ${filePath}: ${error.message}`);
-                          return defaultContent;
-                        }
-                      }
+      - name: Update branch deployment badge
+        uses: ./.github/shared-actions/upload-badge
+        with:
+          label: ${{ inputs.directory }} branch
+          message: ${{ needs.lock.outputs.branch }}
+          color: green
+          style: flat-square
+          filename: latest-${{ inputs.directory }}-branch.svg
+          github_token: ${{ secrets.GITHUB_TOKEN }}
 
-                      const runUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
-                      const diff = safeReadFile('${{ inputs.directory }}/tf.diff.txt', 'No changes detected');
-                      const summary = safeReadFile('${{ inputs.directory }}/tf.summary.txt', 'View output for details');
-                      const cleanApply = safeReadFile('${{ inputs.directory }}/tf.console.stripped.txt', 'No apply output available');
+      - name: Format Terraform Apply Diff
+        if: always()
+        id: diff
+        run: |
+          # Strip extra lines from tf.console.txt
+          awk '
+            /Terraform used the selected providers/ { found_start = 1 }
+            found_start {
+              print
+              if (/^(Error:|Plan:|Apply complete!|No changes.|Success)/) { exit }
+            }
+          ' tf.console.txt > tf.console.stripped.txt || true
 
-                      var body = `
-                      **Terraform apply** (${{ inputs.directory }}) ran in [${{ steps.apply.outputs.duration }} seconds](${runUrl}).
-                      \`\`\`
-                      ${{ steps.apply.outputs.cmd }}
-                      \`\`\`
+          # Filter lines starting with "  # " and prepend diff-specific symbols based on specific keywords.
+          # https://github.com/OP5dev/TF-via-PR
+          grep '^  # ' tf.console.txt | sed \
+            -e 's/^  # \(.* be created\)/+ \1/' \
+            -e 's/^  # \(.* be destroyed\)/- \1/' \
+            -e 's/^  # \(.* be updated\|.* be replaced\)/! \1/' \
+            -e 's/^  # \(.* be read\)/~ \1/' \
+            -e 's/^  # \(.*\)/# \1/' > tf.diff.txt || true
+          awk '/^(Error:|Plan:|Apply complete!|No changes.|Success)/' tf.console.txt > tf.summary.txt
 
-                      #### Diff of changes
-                      \`\`\`diff
-                      ${diff}
-                      \`\`\`
+      - name: Comment Terraform Apply
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            // Helper function to safely read files with a default value
+            function safeReadFile(filePath, defaultContent = '') {
+              try {
+                return fs.readFileSync(filePath, 'utf8');
+              } catch (error) {
+                console.log(`Warning: Could not read file ${filePath}: ${error.message}`);
+                return defaultContent;
+              }
+            }
 
-                      <details>
-                      <summary>${summary}</summary>
+            const runUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const diff = safeReadFile('${{ inputs.directory }}/tf.diff.txt', 'No changes detected');
+            const summary = safeReadFile('${{ inputs.directory }}/tf.summary.txt', 'View output for details');
+            const cleanApply = safeReadFile('${{ inputs.directory }}/tf.console.stripped.txt', 'No apply output available');
 
-                      \`\`\`
-                      ${cleanApply}
-                      \`\`\`
-                      </details>
-                      `
+            var body = `
+            **Terraform apply** (${{ inputs.directory }}) ran in [${{ steps.apply.outputs.duration }} seconds](${runUrl}).
+            \`\`\`
+            ${{ steps.apply.outputs.cmd }}
+            \`\`\`
 
-                      const commentId = ${{ steps.comment.outputs.id }}
-                      if (commentId == null) {
-                        github.rest.issues.createComment({
-                          issue_number: context.issue.number,
-                          owner: context.repo.owner,
-                          repo: context.repo.repo,
-                          body: body
-                        })
-                      } else {
-                        github.rest.issues.updateComment({
-                          owner: context.repo.owner,
-                          repo: context.repo.repo,
-                          comment_id: commentId,
-                          body: body
-                        })
-                      }
+            #### Diff of changes
+            \`\`\`diff
+            ${diff}
+            \`\`\`
 
-            - name: Update status to success or failure
-              if: always()
-              uses: actions/github-script@v7
-              with:
-                  script: |
-                      const state = (`${{ job.status }}` === 'success') ? 'success' : 'failure';
-                      const runUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
-                      const duration = ${{ steps.apply.outputs.duration }} || '0';
+            <details>
+            <summary>${summary}</summary>
 
-                      github.rest.repos.createCommitStatus({
-                        owner: context.repo.owner,
-                        repo: context.repo.repo,
-                        sha: "${{ needs.lock.outputs.head_sha }}",
-                        state: state,
-                        target_url: runUrl,
-                        context: "terraform-apply",
-                        description: state === "success"
-                          ? `Successful in ${duration}s`
-                          : `Failed after ${duration}s`
-                      });
+            \`\`\`
+            ${cleanApply}
+            \`\`\`
+            </details>
+            `
 
-    # TODO: re-apply main if deployment fails
-    revert:
-        runs-on: ubuntu-latest
-        needs: [lock, apply]
-        if: failure() && needs.apply.result == 'failure'
-        permissions:
-            contents: write
-            pull-requests: write
-            statuses: write
-        defaults:
-            run:
-                working-directory: ${{ inputs.directory }}
+            const commentId = ${{ steps.comment.outputs.id }}
+            if (commentId == null) {
+              github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: body
+              })
+            } else {
+              github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: commentId,
+                body: body
+              })
+            }
 
-        steps:
-            - name: Checkout repository
-              uses: actions/checkout@v4
+      - name: Update status to success or failure
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const state = (`${{ job.status }}` === 'success') ? 'success' : 'failure';
+            const runUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const duration = ${{ steps.apply.outputs.duration }} || '0';
 
-            - name: Check for .terraform-version file
-              id: terraform-version
-              run: |
-                  if [ -n "${{ inputs.terraform_version }}" ]; then
-                    echo "Using terraform_version input: ${{ inputs.terraform_version }}"
-                    echo "version=${{ inputs.terraform_version }}" >> $GITHUB_OUTPUT
-                  elif [ -f ".terraform-version" ]; then
-                    version=$(cat .terraform-version | tr -d '[:space:]')
-                    echo "Found .terraform-version file with version: $version"
-                    echo "version=$version" >> $GITHUB_OUTPUT
-                  else
-                    echo "No terraform version specified, using latest"
-                    echo "version=" >> $GITHUB_OUTPUT
-                  fi
+            github.rest.repos.createCommitStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              sha: "${{ needs.lock.outputs.head_sha }}",
+              state: state,
+              target_url: runUrl,
+              context: "terraform-apply",
+              description: state === "success"
+                ? `Successful in ${duration}s`
+                : `Failed after ${duration}s`
+            });
 
-            - name: Setup Terraform
-              uses: hashicorp/setup-terraform@v3
-              with:
-                  terraform_version: ${{ steps.terraform-version.outputs.version || null }}
+  # TODO: re-apply main if deployment fails
+  revert:
+    runs-on: ${{ inputs.runner }}
+    needs: [lock, apply]
+    if: failure() && needs.apply.result == 'failure'
+    permissions:
+      contents: write
+      pull-requests: write
+      statuses: write
+    defaults:
+      run:
+        working-directory: ${{ inputs.directory }}
 
-            - name: Initialize Terraform
-              env:
-                  TF_TOKEN_APP_TERRAFORM_IO: ${{ secrets.TF_TOKEN_APP_TERRAFORM_IO }}
-                  TF_CLOUD_ORGANIZATION: ${{ secrets.TF_CLOUD_ORGANIZATION }}
-                  TF_WORKSPACE: ${{ inputs.directory }}
-                  OKTA_ORG_NAME: ${{ secrets.OKTA_ORG_NAME }}
-                  OKTA_BASE_URL: ${{ secrets.OKTA_BASE_URL }}
-                  OKTA_API_CLIENT_ID: ${{ secrets.OKTA_API_CLIENT_ID }}
-                  OKTA_API_PRIVATE_KEY_ID: ${{ secrets.OKTA_API_PRIVATE_KEY_ID }}
-                  OKTA_API_PRIVATE_KEY: ${{ secrets.OKTA_API_PRIVATE_KEY }}
-                  OKTA_API_SCOPES: ${{ secrets.OKTA_API_SCOPES }}
-              run: |
-                  terraform init -input=false
-                  terraform fmt -check
-                  terraform validate -no-color
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-            - name: Run Terraform Apply
-              id: apply
-              env:
-                  TF_TOKEN_APP_TERRAFORM_IO: ${{ secrets.TF_TOKEN_APP_TERRAFORM_IO }}
-                  TF_CLOUD_ORGANIZATION: ${{ secrets.TF_CLOUD_ORGANIZATION }}
-                  TF_WORKSPACE: ${{ inputs.directory }}
-                  OKTA_ORG_NAME: ${{ secrets.OKTA_ORG_NAME }}
-                  OKTA_BASE_URL: ${{ secrets.OKTA_BASE_URL }}
-                  OKTA_API_CLIENT_ID: ${{ secrets.OKTA_API_CLIENT_ID }}
-                  OKTA_API_PRIVATE_KEY_ID: ${{ secrets.OKTA_API_PRIVATE_KEY_ID }}
-                  OKTA_API_PRIVATE_KEY: ${{ secrets.OKTA_API_PRIVATE_KEY }}
-                  OKTA_API_SCOPES: ${{ secrets.OKTA_API_SCOPES }}
-              run: |
-                  # TODO: target specific changes
-                  cmd="terraform apply -no-color -input=false -auto-approve"
+      - name: Check for .terraform-version file
+        id: terraform-version
+        run: |
+          if [ -n "${{ inputs.terraform_version }}" ]; then
+            echo "Using terraform_version input: ${{ inputs.terraform_version }}"
+            echo "version=${{ inputs.terraform_version }}" >> $GITHUB_OUTPUT
+          elif [ -f ".terraform-version" ]; then
+            version=$(cat .terraform-version | tr -d '[:space:]')
+            echo "Found .terraform-version file with version: $version"
+            echo "version=$version" >> $GITHUB_OUTPUT
+          else
+            echo "No terraform version specified, using latest"
+            echo "version=" >> $GITHUB_OUTPUT
+          fi
 
-                  start=$(date +%s)
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ steps.terraform-version.outputs.version || null }}
 
-                  # handle errors and capture output
-                  set +e
-                  $cmd 2> >(tee tf.console.txt) > >(tee tf.console.txt)
-                  status=$?
-                  set -e
+      - name: Initialize Terraform
+        env:
+          TF_TOKEN_APP_TERRAFORM_IO: ${{ secrets.TF_TOKEN_APP_TERRAFORM_IO }}
+          TF_CLOUD_ORGANIZATION: ${{ secrets.TF_CLOUD_ORGANIZATION }}
+          TF_WORKSPACE: ${{ inputs.directory }}
+          OKTA_ORG_NAME: ${{ secrets.OKTA_ORG_NAME }}
+          OKTA_BASE_URL: ${{ secrets.OKTA_BASE_URL }}
+          OKTA_API_CLIENT_ID: ${{ secrets.OKTA_API_CLIENT_ID }}
+          OKTA_API_PRIVATE_KEY_ID: ${{ secrets.OKTA_API_PRIVATE_KEY_ID }}
+          OKTA_API_PRIVATE_KEY: ${{ secrets.OKTA_API_PRIVATE_KEY }}
+          OKTA_API_SCOPES: ${{ secrets.OKTA_API_SCOPES }}
+        run: |
+          terraform init -input=false
+          terraform fmt -check
+          terraform validate -no-color
 
-                  end=$(date +%s)
+      - name: Run Terraform Apply
+        id: apply
+        env:
+          TF_TOKEN_APP_TERRAFORM_IO: ${{ secrets.TF_TOKEN_APP_TERRAFORM_IO }}
+          TF_CLOUD_ORGANIZATION: ${{ secrets.TF_CLOUD_ORGANIZATION }}
+          TF_WORKSPACE: ${{ inputs.directory }}
+          OKTA_ORG_NAME: ${{ secrets.OKTA_ORG_NAME }}
+          OKTA_BASE_URL: ${{ secrets.OKTA_BASE_URL }}
+          OKTA_API_CLIENT_ID: ${{ secrets.OKTA_API_CLIENT_ID }}
+          OKTA_API_PRIVATE_KEY_ID: ${{ secrets.OKTA_API_PRIVATE_KEY_ID }}
+          OKTA_API_PRIVATE_KEY: ${{ secrets.OKTA_API_PRIVATE_KEY }}
+          OKTA_API_SCOPES: ${{ secrets.OKTA_API_SCOPES }}
+        run: |
+          # TODO: target specific changes
+          cmd="terraform apply -no-color -input=false -auto-approve"
 
-                  echo "duration=$((end - start))" >> $GITHUB_OUTPUT
-                  echo "cmd=$cmd" >> $GITHUB_OUTPUT
+          start=$(date +%s)
 
-                  if [ $status -ne 0 ]; then
-                    echo "Terraform apply failed."
-                    exit 1
-                  fi
+          # handle errors and capture output
+          set +e
+          $cmd 2> >(tee tf.console.txt) > >(tee tf.console.txt)
+          status=$?
+          set -e
+
+          end=$(date +%s)
+
+          echo "duration=$((end - start))" >> $GITHUB_OUTPUT
+          echo "cmd=$cmd" >> $GITHUB_OUTPUT
+
+          if [ $status -ne 0 ]; then
+            echo "Terraform apply failed."
+            exit 1
+          fi

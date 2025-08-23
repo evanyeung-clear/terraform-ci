@@ -3,33 +3,38 @@ name: Release lock on merge
 on:
   workflow_call:
     inputs:
+      runner:
+        description: "Runner to use"
+        required: false
+        default: ubuntu-latest
+        type: string
       directory:
-        description: 'Directory to run Terraform in'
+        description: "Directory to run Terraform in"
         required: true
         type: string
       pr_number:
-        description: 'Pull request number'
+        description: "Pull request number"
         required: true
         type: number
       pr_merged:
-        description: 'Whether the PR was merged'
+        description: "Whether the PR was merged"
         required: true
         type: boolean
       source_branch:
-        description: 'Source branch of the PR'
+        description: "Source branch of the PR"
         required: true
         type: string
       target_branch:
-        description: 'Target branch of the PR'
+        description: "Target branch of the PR"
         required: true
         type: string
 
 jobs:
-  unlock: 
+  unlock:
     if: >
       inputs.pr_merged == true && 
       inputs.target_branch == github.event.repository.default_branch
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runner }}
     permissions:
       pull-requests: write
       contents: write
@@ -92,7 +97,7 @@ jobs:
       - name: Release lock
         uses: forevanyeung/lock@e43a0b2920fca2eb45f02bde126d32e09949d419
         with:
-          mode: unlock 
+          mode: unlock
 
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -115,7 +120,7 @@ jobs:
           color: green
           style: flat-square
           filename: latest-${{ inputs.directory }}-branch.svg
-          github_token: ${{ secrets.GITHUB_TOKEN }} 
+          github_token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Comment lock released
         uses: actions/github-script@v7
