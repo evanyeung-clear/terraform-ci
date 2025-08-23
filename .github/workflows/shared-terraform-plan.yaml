@@ -38,6 +38,9 @@ jobs:
     steps:
       - name: Checkout pull request
         uses: actions/checkout@v4
+        with: 
+          fetch-depth: 0
+          ref: ${{ github.head.ref }}
 
       - name: Check for .terraform-version file
         id: terraform-version

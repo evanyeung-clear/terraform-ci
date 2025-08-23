@@ -5,27 +5,31 @@ const fs = require('fs');
 const Parser = require('tree-sitter');
 const HCL = require('@tree-sitter-grammars/tree-sitter-hcl');
 const core = require('@actions/core');
+const github = require('@actions/github');
 
 const parser = new Parser();
 parser.setLanguage(HCL);
 
-function getGitDiffLines(baseBranch = 'main') {
+function getGitDiffLines() {
+  const baseRef = github.context.payload.pull_request.head.ref;
+
   core.info(execSync("pwd", { encoding: 'utf-8' }));
+  core.info(`Base ref: ${baseRef}`);
 
   const mainBranch = execSync(
-    `git fetch origin ${baseBranch}:${baseBranch}`,
+    `git fetch origin ${baseRef}`,
     { encoding: 'utf-8' }
   );
 
-  const diff = execSync(
-    "git diff",
-    { encoding: 'utf-8' }
-  );
-  core.info(diff);
+  // const diff = execSync(
+  //   "git diff",
+  //   { encoding: 'utf-8' }
+  // );
+  // core.info(diff);
   
   const output = execSync(
-    // `git diff --unified=0 --no-color ${baseBranch} -- '*.tf'`,
-    `git diff --relative --unified=0 --no-color $(git merge-base HEAD ${baseBranch}) -- '*.tf'`,
+    // `git diff --unified=0 --no-color origin/${baseRef} -- '*.tf'`,
+    `git diff --relative --unified=0 --no-color $(git merge-base HEAD ${baseRef}) -- '*.tf'`,
     { encoding: 'utf-8' }
   );
 
@@ -110,8 +114,7 @@ function findChangedBlocks(filePath, changedLines) {
 }
 
 function main() {
-  const baseBranch = core.getInput("branch") || 'main';
-  const changes = getGitDiffLines(baseBranch);
+  const changes = getGitDiffLines();
 
   const targets = new Set();
 
