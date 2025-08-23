@@ -6,6 +6,11 @@ inputs:
     type: string
     description: 'Working directory for the action'
 
+outputs:
+  targets:
+    description: 'Changed Terraform targets'
+    value: ${{ steps.targets.outputs.targets }}
+
 runs:
   using: composite
 
@@ -21,6 +26,7 @@ runs:
       run: npm ci
 
     - name: Get changed Terraform targets
+      id: targets
       shell: bash
       working-directory: ${{inputs.working_directory}}
       run: |
