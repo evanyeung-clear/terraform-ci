@@ -29,7 +29,7 @@ function getGitDiffLines() {
   
   const output = execSync(
     // `git diff --unified=0 --no-color origin/${baseRef} -- '*.tf'`,
-    `git diff --relative --unified=0 --no-color $(git merge-base HEAD ${baseRef}) -- '*.tf'`,
+    `git diff --relative --unified=0 --no-color $(git merge-base HEAD origin/${baseRef}) -- '*.tf'`,
     { encoding: 'utf-8' }
   );
 
