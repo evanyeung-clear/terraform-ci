@@ -198,8 +198,8 @@ jobs:
                     }
                   }
                 }`;
-                console.log(`Hiding comment ${comment.id}`);
-                
+                console.log(`Hiding comment ${comment.id} (${comment.node_id})`);
+
                 const result = await github.graphql(mutation, {
                   subjectId: comment.node_id,
                   classifier: 'OUTDATED'
