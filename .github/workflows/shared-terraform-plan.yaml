@@ -188,6 +188,20 @@ jobs:
                   repo: context.repo.repo,
                   body: '<details><summary>' + outOfDateNotice + '</summary>\n\n' + quotedBody + '\n</details>'
                 });
+
+                // Hide comment
+                const mutation = `mutation MinimizeComment($subjectId: ID!, $classifier: MinimizeCommentClassifier!) {
+                  minimizeComment(input: { subjectId: $subjectId, classifier: $classifier }) {
+                    minimizedComment {
+                      isMinimized
+                      minimizedReason
+                    }
+                  }
+                }`;
+                await github.graphql(mutation, {
+                  subjectId: comment.id,
+                  classifier: 'OUTDATED'
+                });
               }
             }
 
