@@ -10,6 +10,8 @@ const parser = new Parser();
 parser.setLanguage(HCL);
 
 function getGitDiffLines(baseBranch = 'main') {
+  core.info(execSync("pwd", { encoding: 'utf-8' }));
+
   const mainBranch = execSync(
     `git fetch origin ${baseBranch}:${baseBranch}`,
     { encoding: 'utf-8' }
