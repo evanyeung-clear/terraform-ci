@@ -256,6 +256,12 @@ jobs:
           terraform fmt -check
           terraform validate -no-color
 
+      - name: Get Changed Terraform Targets
+        uses: ./.github/shared-actions/tf-targets
+        id: targets
+        with:
+          working_directory: ${{ inputs.directory }}
+
       - name: Run Terraform Apply
         id: apply
         env:
@@ -278,6 +284,13 @@ jobs:
               echo "Using vars file: ${{ inputs.vars_file }}"
             fi
           fi
+
+          # Only target resources that are modified in code
+          targets=${{ steps.targets.outputs.targets }}
+          echo "Targets: $targets"
+          cmd="$cmd $targets"
+
+          echo "Terraform command: $cmd"
 
           start=$(date +%s)
 
