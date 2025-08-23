@@ -11,7 +11,7 @@ const parser = new Parser();
 parser.setLanguage(HCL);
 
 function getGitDiffLines() {
-  const baseRef = github.context.payload.pull_request.head.ref;
+  const baseRef = github.context.payload.pull_request?.base.ref || 'main';
 
   core.info(execSync("pwd", { encoding: 'utf-8' }));
   core.info(`Base ref: ${baseRef}`);
