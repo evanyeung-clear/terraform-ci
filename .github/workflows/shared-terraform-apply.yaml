@@ -212,7 +212,9 @@ jobs:
       - name: Checkout pull request
         uses: actions/checkout@v4
         with:
+          fetch-depth: 0
           ref: refs/pull/${{ github.event.issue.number }}/head
+          # ref: ${{ github.head.ref }}
 
       - name: Check for .terraform-version file
         id: terraform-version
@@ -375,7 +377,7 @@ jobs:
             const cleanApply = safeReadFile('${{ inputs.directory }}/tf.console.stripped.txt', 'No apply output available');
 
             var body = `
-            **Terraform apply** (${{ inputs.directory }}) ran in [${{ steps.apply.outputs.duration }} seconds](${runUrl}).
+            **Terraform apply** (Okta ${{ inputs.directory }}) ran in [${{ steps.apply.outputs.duration }} seconds](${runUrl}).
             \`\`\`
             ${{ steps.apply.outputs.cmd }}
             \`\`\`
