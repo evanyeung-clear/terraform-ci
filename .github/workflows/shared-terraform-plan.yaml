@@ -190,14 +190,17 @@ jobs:
                 });
 
                 // Hide comment
-                const mutation = `mutation MinimizeComment($subjectId: ID!, $classifier: MinimizeCommentClassifier!) {
+                const mutation = `mutation($subjectId:ID!, $classifier:ReportedContentClassifiers!) {
                   minimizeComment(input: { subjectId: $subjectId, classifier: $classifier }) {
+                    clientMutationId
                     minimizedComment {
                       isMinimized
                       minimizedReason
+                      viewerCanMinimize
                     }
                   }
                 }`;
+
                 console.log(`Hiding comment ${comment.id} (${comment.node_id})`);
 
                 const result = await github.graphql(mutation, {
