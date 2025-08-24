@@ -3,8 +3,13 @@ name: Terraform Apply
 on:
   workflow_call:
     inputs:
+      runner:
+        description: "Runner to use"
+        required: false
+        default: ubuntu-latest
+        type: string
       directory:
-        description: 'Directory to run Terraform in'
+        description: "Directory to run Terraform in"
         required: true
         type: string
       terraform_version:
@@ -20,8 +25,8 @@ on:
         description: "Optional if you need to decode the variables file with SOPS"
         required: false
 jobs:
-  lock: 
-    runs-on: ubuntu-latest
+  lock:
+    runs-on: ${{ inputs.runner }}
     permissions:
       pull-requests: write
       contents: write
@@ -85,7 +90,7 @@ jobs:
       # - name: Check PR is approved
       #   uses: actions/github-script@v7
       #   with:
-      #     script: | 
+      #     script: |
       #       const { data: reviews } = await github.rest.pulls.listReviews({
       #         owner: context.repo.owner,
       #         repo: context.repo.repo,
@@ -122,7 +127,7 @@ jobs:
               console.log(`Lock is held by branch ${lockedBranch}, cannot proceed.`);
               core.setOutput("locked", "true");
             }
-        
+
       - name: Comment if unable to obtain lock
         if: steps.lock-check.outputs.locked == 'true'
         uses: actions/github-script@v7
@@ -152,7 +157,7 @@ jobs:
 
             // exit early
             core.setFailed('Failed to acquire lock.');
-          
+
       - name: Get deployment lock
         if: steps.lock.outputs.locked == 'false' || steps.lock-check.outputs.locked == 'false'
         uses: forevanyeung/lock@e43a0b2920fca2eb45f02bde126d32e09949d419
@@ -163,7 +168,7 @@ jobs:
           branch: ${{ steps.pr.outputs.branch }}
 
   apply:
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runner }}
     needs: lock
     permissions:
       contents: write
@@ -190,7 +195,7 @@ jobs:
 
       - name: Set commit status to pending
         uses: actions/github-script@v7
-        with: 
+        with:
           script: |
             const runUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
 
@@ -208,7 +213,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: refs/pull/${{ github.event.issue.number }}/head
-      
+
       - name: Check for .terraform-version file
         id: terraform-version
         run: |
@@ -251,6 +256,12 @@ jobs:
           terraform fmt -check
           terraform validate -no-color
 
+      - name: Get Changed Terraform Targets
+        uses: ./.github/shared-actions/tf-targets
+        id: targets
+        with:
+          working_directory: ${{ inputs.directory }}
+
       - name: Run Terraform Apply
         id: apply
         env:
@@ -258,8 +269,8 @@ jobs:
           TF_CLOUD_ORGANIZATION: ${{ secrets.TF_CLOUD_ORGANIZATION }}
           TF_WORKSPACE: ${{ inputs.directory }}
         run: |
-          # Build terraform plan command based on vars file and SOPS usage
-          cmd="terraform plan -no-color -input=false"
+          # Build terraform apply command based on vars file and SOPS usage
+          cmd="terraform apply -no-color -input=false -auto-approve"
 
           # Add vars file if specified
           if [[ -n "${{ inputs.vars_file }}" ]]; then
@@ -274,6 +285,13 @@ jobs:
             fi
           fi
 
+          # Only target resources that are modified in code
+          targets=${{ steps.targets.outputs.targets }}
+          echo "Targets: $targets"
+          cmd="$cmd $targets"
+
+          echo "Terraform command: $cmd"
+
           start=$(date +%s)
 
           # handle errors and capture output
@@ -281,7 +299,7 @@ jobs:
           $cmd 2> >(tee tf.console.txt) > >(tee tf.console.txt)
           status=$?
           set -e
-          
+
           end=$(date +%s)
 
           echo "duration=$((end - start))" >> $GITHUB_OUTPUT
@@ -334,11 +352,11 @@ jobs:
             -e 's/^  # \(.* be read\)/~ \1/' \
             -e 's/^  # \(.*\)/# \1/' > tf.diff.txt || true
           awk '/^(Error:|Plan:|Apply complete!|No changes.|Success)/' tf.console.txt > tf.summary.txt
-      
+
       - name: Comment Terraform Apply
         if: always()
         uses: actions/github-script@v7
-        with: 
+        with:
           script: |
             const fs = require('fs');
             // Helper function to safely read files with a default value
@@ -396,7 +414,7 @@ jobs:
       - name: Update status to success or failure
         if: always()
         uses: actions/github-script@v7
-        with: 
+        with:
           script: |
             const state = (`${{ job.status }}` === 'success') ? 'success' : 'failure';
             const runUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
@@ -416,7 +434,7 @@ jobs:
 
   # TODO: re-apply main if deployment fails
   revert:
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runner }}
     needs: [lock, apply]
     if: failure() && needs.apply.result == 'failure'
     permissions:
@@ -430,7 +448,7 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-      
+
       - name: Check for .terraform-version file
         id: terraform-version
         run: |
@@ -456,12 +474,12 @@ jobs:
           TF_TOKEN_APP_TERRAFORM_IO: ${{ secrets.TF_TOKEN_APP_TERRAFORM_IO }}
           TF_CLOUD_ORGANIZATION: ${{ secrets.TF_CLOUD_ORGANIZATION }}
           TF_WORKSPACE: ${{ inputs.directory }}
-          OKTA_ORG_NAME: ${{ secrets.OKTA_ORG_NAME }} 
-          OKTA_BASE_URL: ${{ secrets.OKTA_BASE_URL }} 
-          OKTA_API_CLIENT_ID: ${{ secrets.OKTA_API_CLIENT_ID }} 
-          OKTA_API_PRIVATE_KEY_ID: ${{ secrets.OKTA_API_PRIVATE_KEY_ID }} 
-          OKTA_API_PRIVATE_KEY: ${{ secrets.OKTA_API_PRIVATE_KEY }} 
-          OKTA_API_SCOPES: ${{ secrets.OKTA_API_SCOPES }} 
+          OKTA_ORG_NAME: ${{ secrets.OKTA_ORG_NAME }}
+          OKTA_BASE_URL: ${{ secrets.OKTA_BASE_URL }}
+          OKTA_API_CLIENT_ID: ${{ secrets.OKTA_API_CLIENT_ID }}
+          OKTA_API_PRIVATE_KEY_ID: ${{ secrets.OKTA_API_PRIVATE_KEY_ID }}
+          OKTA_API_PRIVATE_KEY: ${{ secrets.OKTA_API_PRIVATE_KEY }}
+          OKTA_API_SCOPES: ${{ secrets.OKTA_API_SCOPES }}
         run: |
           terraform init -input=false
           terraform fmt -check
@@ -473,12 +491,12 @@ jobs:
           TF_TOKEN_APP_TERRAFORM_IO: ${{ secrets.TF_TOKEN_APP_TERRAFORM_IO }}
           TF_CLOUD_ORGANIZATION: ${{ secrets.TF_CLOUD_ORGANIZATION }}
           TF_WORKSPACE: ${{ inputs.directory }}
-          OKTA_ORG_NAME: ${{ secrets.OKTA_ORG_NAME }} 
-          OKTA_BASE_URL: ${{ secrets.OKTA_BASE_URL }} 
-          OKTA_API_CLIENT_ID: ${{ secrets.OKTA_API_CLIENT_ID }} 
-          OKTA_API_PRIVATE_KEY_ID: ${{ secrets.OKTA_API_PRIVATE_KEY_ID }} 
-          OKTA_API_PRIVATE_KEY: ${{ secrets.OKTA_API_PRIVATE_KEY }} 
-          OKTA_API_SCOPES: ${{ secrets.OKTA_API_SCOPES }} 
+          OKTA_ORG_NAME: ${{ secrets.OKTA_ORG_NAME }}
+          OKTA_BASE_URL: ${{ secrets.OKTA_BASE_URL }}
+          OKTA_API_CLIENT_ID: ${{ secrets.OKTA_API_CLIENT_ID }}
+          OKTA_API_PRIVATE_KEY_ID: ${{ secrets.OKTA_API_PRIVATE_KEY_ID }}
+          OKTA_API_PRIVATE_KEY: ${{ secrets.OKTA_API_PRIVATE_KEY }}
+          OKTA_API_SCOPES: ${{ secrets.OKTA_API_SCOPES }}
         run: |
           # TODO: target specific changes
           cmd="terraform apply -no-color -input=false -auto-approve"
@@ -490,7 +508,7 @@ jobs:
           $cmd 2> >(tee tf.console.txt) > >(tee tf.console.txt)
           status=$?
           set -e
-          
+
           end=$(date +%s)
 
           echo "duration=$((end - start))" >> $GITHUB_OUTPUT
