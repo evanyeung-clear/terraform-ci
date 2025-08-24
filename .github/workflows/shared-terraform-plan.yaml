@@ -213,7 +213,7 @@ jobs:
             }
 
             var body = `
-            **Terraform plan** (${{ inputs.directory }}) ran in [${{ steps.plan.outputs.duration }} seconds](${runUrl}).
+            **Terraform plan** (Okta ${{ inputs.directory }}) ran in [${{ steps.plan.outputs.duration }} seconds](${runUrl}).
             \`\`\`
             ${{ steps.plan.outputs.cmd }}
             \`\`\`

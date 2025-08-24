@@ -375,7 +375,7 @@ jobs:
             const cleanApply = safeReadFile('${{ inputs.directory }}/tf.console.stripped.txt', 'No apply output available');
 
             var body = `
-            **Terraform apply** (${{ inputs.directory }}) ran in [${{ steps.apply.outputs.duration }} seconds](${runUrl}).
+            **Terraform apply** (Okta ${{ inputs.directory }}) ran in [${{ steps.apply.outputs.duration }} seconds](${runUrl}).
             \`\`\`
             ${{ steps.apply.outputs.cmd }}
             \`\`\`
