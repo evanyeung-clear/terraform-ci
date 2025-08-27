@@ -319,6 +319,18 @@ jobs:
           git push --force origin "$TAG"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Label PR deployment lock
+        uses: actions/github-script@7
+        with:
+          script: |
+            const lockLabel = '${{ inputs.directory }}-lock';
+            await github.issues.addLabels({
+              issue_number: context.payload.pull_request.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              labels: [lockLabel]
+            });
 
       - name: Update branch deployment badge
         uses: ./.github/shared-actions/upload-badge
