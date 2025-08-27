@@ -98,7 +98,7 @@ jobs:
           TF_WORKSPACE: ${{ inputs.directory }}
         run: |
           # Build terraform plan command based on vars file and SOPS usage
-          cmd="TF_WORKSPACE=${{ inputs.directory }} terraform plan -no-color -input=false"
+          cmd="terraform plan -no-color -input=false"
 
           # Add vars file if specified
           if [[ -n "${{ inputs.vars_file }}" ]]; then
@@ -121,11 +121,24 @@ jobs:
           echo "Terraform command: $cmd"
 
           start=$(date +%s)
+          # handle errors and capture output
+          set +e
           $cmd 2> >(tee tf.console.txt) > >(tee tf.console.txt)
+          status=$?
+          set -e
           end=$(date +%s)
+
+
+          # add TF_WORKSPACE to command output
+          cmd="TF_WORKSPACE=${{ inputs.directory }} $cmd"
 
           echo "duration=$((end - start))" >> $GITHUB_OUTPUT
           echo "cmd=$cmd" >> $GITHUB_OUTPUT
+
+          if [ $status -ne 0 ]; then
+            echo "Terraform plan failed."
+            exit 1
+          fi
 
       - name: Format Terraform Plan Diff
         id: diff
