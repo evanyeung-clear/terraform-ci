@@ -272,7 +272,7 @@ jobs:
           TF_WORKSPACE: ${{ inputs.directory }}
         run: |
           # Build terraform apply command based on vars file and SOPS usage
-          cmd="terraform apply -no-color -input=false -auto-approve"
+          cmd="TF_WORKSPACE=${{ inputs.directory }} terraform apply -no-color -input=false -auto-approve"
 
           # Add vars file if specified
           if [[ -n "${{ inputs.vars_file }}" ]]; then
@@ -476,12 +476,6 @@ jobs:
           TF_TOKEN_APP_TERRAFORM_IO: ${{ secrets.TF_TOKEN_APP_TERRAFORM_IO }}
           TF_CLOUD_ORGANIZATION: ${{ secrets.TF_CLOUD_ORGANIZATION }}
           TF_WORKSPACE: ${{ inputs.directory }}
-          OKTA_ORG_NAME: ${{ secrets.OKTA_ORG_NAME }}
-          OKTA_BASE_URL: ${{ secrets.OKTA_BASE_URL }}
-          OKTA_API_CLIENT_ID: ${{ secrets.OKTA_API_CLIENT_ID }}
-          OKTA_API_PRIVATE_KEY_ID: ${{ secrets.OKTA_API_PRIVATE_KEY_ID }}
-          OKTA_API_PRIVATE_KEY: ${{ secrets.OKTA_API_PRIVATE_KEY }}
-          OKTA_API_SCOPES: ${{ secrets.OKTA_API_SCOPES }}
         run: |
           terraform init -input=false
           terraform fmt -check
@@ -493,12 +487,6 @@ jobs:
           TF_TOKEN_APP_TERRAFORM_IO: ${{ secrets.TF_TOKEN_APP_TERRAFORM_IO }}
           TF_CLOUD_ORGANIZATION: ${{ secrets.TF_CLOUD_ORGANIZATION }}
           TF_WORKSPACE: ${{ inputs.directory }}
-          OKTA_ORG_NAME: ${{ secrets.OKTA_ORG_NAME }}
-          OKTA_BASE_URL: ${{ secrets.OKTA_BASE_URL }}
-          OKTA_API_CLIENT_ID: ${{ secrets.OKTA_API_CLIENT_ID }}
-          OKTA_API_PRIVATE_KEY_ID: ${{ secrets.OKTA_API_PRIVATE_KEY_ID }}
-          OKTA_API_PRIVATE_KEY: ${{ secrets.OKTA_API_PRIVATE_KEY }}
-          OKTA_API_SCOPES: ${{ secrets.OKTA_API_SCOPES }}
         run: |
           # TODO: target specific changes
           cmd="terraform apply -no-color -input=false -auto-approve"
