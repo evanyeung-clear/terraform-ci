@@ -297,7 +297,7 @@ jobs:
           start=$(date +%s)
           # handle errors and capture output
           set +e
-          $cmd 2> >(tee tf.console.txt) > >(tee tf.console.txt)
+          $cmd 2>&1 | tee tf.console.txt
           status=$?
           set -e
           end=$(date +%s)
