@@ -53,10 +53,9 @@ jobs:
 
       - name: Check if branch is up to date with base branch
         uses: actions/github-script@v7
-        id: branch-up-to-date
         with:
           script: |
-            if (${{ steps.pr.outputs.mergeable_state }} !== 'clean') {
+            if ("${{ steps.pr.outputs.mergeable_state }}" !== 'clean') {
               core.setFailed('Branch is not up to date with base branch. Please rebase or merge the latest changes from the base branch.');
             } else {
               console.log('Branch is up to date with base branch.');
