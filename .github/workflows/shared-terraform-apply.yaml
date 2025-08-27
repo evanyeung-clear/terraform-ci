@@ -272,7 +272,7 @@ jobs:
           TF_WORKSPACE: ${{ inputs.directory }}
         run: |
           # Build terraform apply command based on vars file and SOPS usage
-          cmd="terraform apply -no-color -input=false -auto-approve"
+          cmd="TF_WORKSPACE=${{ inputs.directory }} terraform apply -no-color -input=false -auto-approve"
 
           # Add vars file if specified
           if [[ -n "${{ inputs.vars_file }}" ]]; then
