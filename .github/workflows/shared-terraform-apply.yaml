@@ -302,9 +302,6 @@ jobs:
           set -e
           end=$(date +%s)
 
-          # add TF_WORKSPACE to command output
-          cmd="TF_WORKSPACE=${{ inputs.directory }} $cmd"
-
           echo "duration=$((end - start))" >> $GITHUB_OUTPUT
           echo "cmd=$cmd" >> $GITHUB_OUTPUT
 
