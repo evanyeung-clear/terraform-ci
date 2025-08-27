@@ -128,10 +128,6 @@ jobs:
           set -e
           end=$(date +%s)
 
-
-          # add TF_WORKSPACE to command output
-          cmd="TF_WORKSPACE=${{ inputs.directory }} $cmd"
-
           echo "duration=$((end - start))" >> $GITHUB_OUTPUT
           echo "cmd=$cmd" >> $GITHUB_OUTPUT
 
@@ -183,7 +179,7 @@ jobs:
             const cleanPlan = safeReadFile('${{ inputs.directory }}/tf.console.stripped.txt', 'No plan output available');
 
             // Find previous plan comment and mark as out of date
-            const planCommentTag = `**Terraform plan** (${{ inputs.directory }})`;
+            const planCommentTag = `**Terraform plan** (Okta ${{ inputs.directory }})`;
             const outOfDateNotice = 'This plan is out of date. A new plan has been performed.';
             const comments = await github.rest.issues.listComments({
               issue_number: context.issue.number,
