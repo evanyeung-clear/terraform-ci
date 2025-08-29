@@ -310,7 +310,7 @@ jobs:
           # handle errors and capture output
           set +e
           $cmd 2>&1 | tee tf.console.txt
-          status=$?
+          status=${PIPESTATUS[0]}
           set -e
           end=$(date +%s)
 
@@ -349,7 +349,7 @@ jobs:
         with:
           label: ${{ inputs.directory }} branch
           message: ${{ needs.lock.outputs.branch }}
-          color: green
+          color: ${{ needs.lock.outputs.branch == github.event.repository.default_branch && 'green' || 'red' }}
           style: flat-square
           filename: latest-${{ inputs.directory }}-branch.svg
           github_token: ${{ secrets.GITHUB_TOKEN }}
@@ -402,11 +402,6 @@ jobs:
             **Terraform apply** (Okta ${{ inputs.directory }}) ran in [${{ steps.apply.outputs.duration }} seconds](${runUrl}).
             \`\`\`
             ${{ steps.apply.outputs.cmd }}
-            \`\`\`
-
-            #### Diff of changes
-            \`\`\`diff
-            ${diff}
             \`\`\`
 
             <details>
