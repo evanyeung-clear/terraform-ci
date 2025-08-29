@@ -349,7 +349,7 @@ jobs:
         with:
           label: ${{ inputs.directory }} branch
           message: ${{ needs.lock.outputs.branch }}
-          color: green
+            color: ${{ needs.lock.outputs.branch == github.event.repository.default_branch && 'green' || 'red' }}
           style: flat-square
           filename: latest-${{ inputs.directory }}-branch.svg
           github_token: ${{ secrets.GITHUB_TOKEN }}
