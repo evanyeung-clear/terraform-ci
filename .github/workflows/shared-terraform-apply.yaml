@@ -337,7 +337,7 @@ jobs:
         with:
           script: |
             const lockLabel = '${{ inputs.directory }}-lock';
-            await github.issues.addLabels({
+            await github.rest.issues.addLabels({
               issue_number: context.payload.pull_request.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
