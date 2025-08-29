@@ -310,7 +310,7 @@ jobs:
           # handle errors and capture output
           set +e
           $cmd 2>&1 | tee tf.console.txt
-          status=$?
+          status=${PIPESTATUS[0]}
           set -e
           end=$(date +%s)
 
