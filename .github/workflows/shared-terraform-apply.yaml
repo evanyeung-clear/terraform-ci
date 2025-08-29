@@ -327,7 +327,7 @@ jobs:
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git config --global user.name "github-actions[bot]"
           TAG="deploy-${{ inputs.directory }}"
-          git tag "$TAG"
+          git tag -f "$TAG"
           git push --force origin "refs/tags/$TAG:refs/tags/$TAG"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
