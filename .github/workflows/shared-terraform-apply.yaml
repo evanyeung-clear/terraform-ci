@@ -404,11 +404,6 @@ jobs:
             ${{ steps.apply.outputs.cmd }}
             \`\`\`
 
-            #### Diff of changes
-            \`\`\`diff
-            ${diff}
-            \`\`\`
-
             <details>
             <summary>${summary}</summary>
 
