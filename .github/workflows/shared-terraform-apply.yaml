@@ -465,7 +465,7 @@ jobs:
         working-directory: ${{ inputs.directory }}
 
     steps:
-      - name: Checkout repository
+      - name: Checkout main branch 
         uses: actions/checkout@v4
 
       - name: Check for .terraform-version file
@@ -488,6 +488,18 @@ jobs:
         with:
           terraform_version: ${{ steps.terraform-version.outputs.version || null }}
 
+      - name: Decrypt Terraform variables
+        id: decrypt
+        uses: ./.github/shared-actions/decrypt-sops
+        if: inputs.vars_file != '' && env.SOPS_AGE_KEY != ''
+        env:
+          SOPS_AGE_KEY: ${{ secrets.sops_age_key }}
+        with:
+          working_directory: ${{ inputs.directory }}
+          input_file: ${{ inputs.vars_file }}
+          output_file: terraform.tfvars.json
+          sops_age_key: ${{ secrets.sops_age_key }}
+
       - name: Initialize Terraform
         env:
           TF_TOKEN_APP_TERRAFORM_IO: ${{ secrets.TF_TOKEN_APP_TERRAFORM_IO }}
@@ -505,17 +517,30 @@ jobs:
           TF_CLOUD_ORGANIZATION: ${{ secrets.TF_CLOUD_ORGANIZATION }}
           TF_WORKSPACE: ${{ inputs.directory }}
         run: |
-          # TODO: target specific changes
+          # Build terraform apply command based on vars file and SOPS usage
           cmd="terraform apply -no-color -input=false -auto-approve"
 
-          start=$(date +%s)
+          # Add vars file if specified
+          if [[ -n "${{ inputs.vars_file }}" ]]; then
+            if [[ -n "${{ secrets.sops_age_key }}" && -n "${{ steps.decrypt.outputs.decrypted_file }}" ]]; then
+              # Use decrypted file if SOPS was used
+              cmd="$cmd -var-file=${{ steps.decrypt.outputs.decrypted_file }}"
+              echo "Using SOPS-decrypted vars file: ${{ steps.decrypt.outputs.decrypted_file }}"
+            else
+              # Use original vars file if no SOPS
+              cmd="$cmd -var-file=${{ inputs.vars_file }}"
+              echo "Using vars file: ${{ inputs.vars_file }}"
+            fi
+          fi
 
+          echo "Terraform command: $cmd"
+
+          start=$(date +%s)
           # handle errors and capture output
           set +e
-          $cmd 2> >(tee tf.console.txt) > >(tee tf.console.txt)
-          status=$?
+          $cmd 2>&1 | tee tf.console.txt
+          status=${PIPESTATUS[0]}
           set -e
-
           end=$(date +%s)
 
           echo "duration=$((end - start))" >> $GITHUB_OUTPUT
@@ -525,3 +550,35 @@ jobs:
             echo "Terraform apply failed."
             exit 1
           fi
+
+      - name: Tag commit on successful apply
+        run: |
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "github-actions[bot]"
+          TAG="deploy-${{ inputs.directory }}"
+          git tag -f "$TAG"
+          git push --force origin "refs/tags/$TAG:refs/tags/$TAG"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Remove PR deployment lock label
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const lockLabel = '${{ inputs.directory }}-lock';
+            await github.rest.issues.removeLabels({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              labels: [lockLabel]
+            });
+
+      - name: Update branch deployment badge
+        uses: ./.github/shared-actions/upload-badge
+        with:
+          label: ${{ inputs.directory }} branch
+          message: ${{ needs.lock.outputs.branch }}
+          color: ${{ needs.lock.outputs.branch == github.event.repository.default_branch && 'green' || 'red' }}
+          style: flat-square
+          filename: latest-${{ inputs.directory }}-branch.svg
+          github_token: ${{ secrets.GITHUB_TOKEN }}
