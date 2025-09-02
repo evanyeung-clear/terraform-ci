@@ -173,6 +173,50 @@ jobs:
               }
             }
 
+            // Helper function to mark previous comment as out of date
+            function markOutdated(search, notice) {
+              const comments = await github.rest.issues.listComments({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                per_page: 100
+              });
+
+              for (const comment of comments.data) {
+                if (comment.body && comment.body.includes(search) && !comment.body.includes(notice)) {
+                  // Prepend '> ' to each line of comment.body for quoting
+                  const quotedBody = comment.body.split('\n').map(line => '> ' + line).join('\n');
+                  await github.rest.issues.updateComment({
+                    comment_id: comment.id,
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    body: '<details><summary>' + notice + '</summary>\n\n' + quotedBody + '\n</details>'
+                  });
+
+                  // Hide comment
+                  const mutation = `mutation($subjectId:ID!, $classifier:ReportedContentClassifiers!) {
+                    minimizeComment(input: { subjectId: $subjectId, classifier: $classifier }) {
+                      clientMutationId
+                      minimizedComment {
+                        isMinimized
+                        minimizedReason
+                        viewerCanMinimize
+                      }
+                    }
+                  }`;
+
+                  console.log(`Hiding comment ${comment.id} (${comment.node_id})`);
+
+                  const result = await github.graphql(mutation, {
+                    subjectId: comment.node_id,
+                    classifier: 'OUTDATED'
+                  });
+
+                  console.log(result);
+                }
+              }
+            }
+
             const runUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
             const diff = safeReadFile('${{ inputs.directory }}/tf.diff.txt', 'No changes detected');
             const summary = safeReadFile('${{ inputs.directory }}/tf.summary.txt', 'View output for details');
@@ -180,46 +224,13 @@ jobs:
 
             // Find previous plan comment and mark as out of date
             const planCommentTag = `**Terraform plan** (Okta ${{ inputs.directory }})`;
-            const outOfDateNotice = 'This plan is out of date. A new plan has been performed.';
-            const comments = await github.rest.issues.listComments({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              per_page: 100
-            });
-            for (const comment of comments.data) {
-              if (comment.body && comment.body.includes(planCommentTag) && !comment.body.includes(outOfDateNotice)) {
-                // Prepend '> ' to each line of comment.body for quoting
-                const quotedBody = comment.body.split('\n').map(line => '> ' + line).join('\n');
-                await github.rest.issues.updateComment({
-                  comment_id: comment.id,
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  body: '<details><summary>' + outOfDateNotice + '</summary>\n\n' + quotedBody + '\n</details>'
-                });
+            const planOutOfDateNotice = 'This plan is out of date. A new plan has been performed.';
+            markOutdated(planCommentTag, planOutOfDateNotice);
 
-                // Hide comment
-                const mutation = `mutation($subjectId:ID!, $classifier:ReportedContentClassifiers!) {
-                  minimizeComment(input: { subjectId: $subjectId, classifier: $classifier }) {
-                    clientMutationId
-                    minimizedComment {
-                      isMinimized
-                      minimizedReason
-                      viewerCanMinimize
-                    }
-                  }
-                }`;
-
-                console.log(`Hiding comment ${comment.id} (${comment.node_id})`);
-
-                const result = await github.graphql(mutation, {
-                  subjectId: comment.node_id,
-                  classifier: 'OUTDATED'
-                });
-
-                console.log(result);
-              }
-            }
+            // Find previous apply comment and mark as out of date
+            const applyCommentTag = `**Terraform apply** (Okta ${{ inputs.directory }})`;
+            const applyOutOfDateNotice = 'This apply is out of date. A new apply has been performed.';
+            markOutdated(applyCommentTag, applyOutOfDateNotice);
 
             var body = `
             **Terraform plan** (Okta ${{ inputs.directory }}) ran in [${{ steps.plan.outputs.duration }} seconds](${runUrl}).
