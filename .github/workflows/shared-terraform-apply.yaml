@@ -561,17 +561,17 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       
-      - name: Remove PR deployment lock label
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const lockLabel = '${{ inputs.directory }}-lock';
-            await github.rest.issues.removeLabels({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              labels: [lockLabel]
-            });
+      # - name: Remove PR deployment lock label
+      #   uses: actions/github-script@v7
+      #   with:
+      #     script: |
+      #       const lockLabel = '${{ inputs.directory }}-lock';
+      #       await github.rest.issues.removeLabels({
+      #         issue_number: context.issue.number,
+      #         owner: context.repo.owner,
+      #         repo: context.repo.repo,
+      #         labels: [lockLabel]
+      #       });
 
       - name: Update branch deployment badge
         uses: ./.github/shared-actions/upload-badge
@@ -582,3 +582,8 @@ jobs:
           style: flat-square
           filename: latest-${{ inputs.directory }}-branch.svg
           github_token: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Release deployment lock
+        uses: forevanyeung/lock@e43a0b2920fca2eb45f02bde126d32e09949d419
+        with:
+          mode: unlock
