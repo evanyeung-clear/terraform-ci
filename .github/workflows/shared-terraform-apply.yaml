@@ -433,7 +433,7 @@ jobs:
               })
             }
 
-      - name: Update status to success or failure
+      - name: Update check status
         if: always()
         uses: actions/github-script@v7
         with:
