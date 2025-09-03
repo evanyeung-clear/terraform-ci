@@ -555,6 +555,7 @@ jobs:
           fi
 
       - name: Tag commit on successful apply
+        if: always() && steps.apply.outcome == 'success'
         run: |
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git config --global user.name "github-actions[bot]"
@@ -565,6 +566,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       
       # - name: Remove PR deployment lock label
+      #   if: always() && steps.apply.outcome == 'success'
       #   uses: actions/github-script@v7
       #   with:
       #     script: |
@@ -577,6 +579,7 @@ jobs:
       #       });
 
       - name: Update branch deployment badge
+        if: always() && steps.apply.outcome == 'success'
         uses: ./.github/shared-actions/upload-badge
         with:
           label: ${{ inputs.directory }} branch
@@ -587,6 +590,7 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
       
       - name: Release deployment lock
+        if: always() && steps.apply.outcome == 'success'
         uses: forevanyeung/lock@e43a0b2920fca2eb45f02bde126d32e09949d419
         with:
           mode: unlock
