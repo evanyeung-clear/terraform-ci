@@ -577,7 +577,7 @@ jobs:
         uses: ./.github/shared-actions/upload-badge
         with:
           label: ${{ inputs.directory }} branch
-          message: ${{ needs.lock.outputs.branch }}
+          message: ${{ github.event.repository.default_branch }}
           color: ${{ needs.lock.outputs.branch == github.event.repository.default_branch && 'green' || 'red' }}
           style: flat-square
           filename: latest-${{ inputs.directory }}-branch.svg
