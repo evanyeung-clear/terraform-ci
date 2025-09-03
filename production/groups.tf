@@ -27,3 +27,8 @@ resource "okta_group" "example6" {
   name        = "Example6"
   description = "My Example Group"
 }
+
+import {
+  to = okta_group.example6
+  id = "00gq7829t9tbGRpf15d7"
+}
