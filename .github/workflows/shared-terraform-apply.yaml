@@ -1,4 +1,4 @@
-name: Terraform Apply
+
 
 on:
   workflow_call:
@@ -360,12 +360,13 @@ jobs:
         run: |
           # Strip extra lines from tf.console.txt
           awk '
-            /Terraform used the selected providers/ { found_start = 1 }
-            found_start {
-              print
-              if (/^(Error:|Plan:|Apply complete!|No changes.|Success)/) { exit }
-            }
-          ' tf.console.txt > tf.console.stripped.txt || true
+            BEGIN {skip=0}
+            /^Warning:/ {skip=1}
+            skip && (/^Note that the -target option/ || /^The -target option/) {skip=2; next} skip==2 && NF==0 {skip=0; next}
+            skip {next}
+            {print}
+          ' tf.console.txt | 
+          awk '/^─────/,EOF {next} {print}' > tf.console.stripped.txt || true
 
           # Filter lines starting with "  # " and prepend diff-specific symbols based on specific keywords.
           # https://github.com/OP5dev/TF-via-PR
@@ -375,6 +376,8 @@ jobs:
             -e 's/^  # \(.* be updated\|.* be replaced\)/! \1/' \
             -e 's/^  # \(.* be read\)/~ \1/' \
             -e 's/^  # \(.*\)/# \1/' > tf.diff.txt || true
+          
+          # Grab the summary lines for the expand text
           awk '/^(Error:|Apply complete!|No changes.|Success)/' tf.console.txt > tf.summary.txt
 
       - name: Comment Terraform Apply
