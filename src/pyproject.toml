@@ -1,0 +1,9 @@
+[project]
+name = "terraform-ci"
+version = "0.1.0"
+description = "Terraform wrapper"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "okta>=2.9.5",
+]
