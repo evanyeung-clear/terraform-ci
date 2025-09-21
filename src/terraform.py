@@ -55,14 +55,24 @@ def check_infinite_recursion():
     os.environ["TERRAFORM_WRAPPER_RUNNING"] = "1"
 
 def validate_current_directory():
-    """Check if current directory is preview or production"""
-    current_dir = Path.cwd().name.lower()
-    if current_dir not in ALLOWED_DIRECTORIES:
-        log_error(f"terraform.py can only be run from '{'/'.join(ALLOWED_DIRECTORIES)}' directories")
-        log_info(f"Current directory: {current_dir}")
-        log_info(f"Please change to either '{'/'.join(ALLOWED_DIRECTORIES)}' directory first")
+    """Check if current directory contains a .tf file with a terraform {} block"""
+    cwd = Path.cwd()
+    allowed = False
+    for tf_file in cwd.glob("*.tf"):
+        try:
+            with open(tf_file, "r", encoding="utf-8") as f:
+                content = f.read()
+                if "terraform {" in content:
+                    allowed = True
+                    break
+        except Exception as e:
+            log_error(f"Error reading {tf_file}: {e}")
+    if not allowed:
+        log_error("terraform.py can only be run from a directory containing a .tf file with a terraform {} block.")
+        log_info(f"Current directory: {cwd}")
+        log_info("Please change to a directory with a valid Terraform configuration.")
         sys.exit(1)
-    return current_dir
+    return cwd.name
 
 def cleanup_existing_files():
     """Clean up any existing temporary files"""
