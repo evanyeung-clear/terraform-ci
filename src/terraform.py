@@ -4,29 +4,18 @@ terraform.py - Cross-platform Python script for Terraform with preprocessing
 
 Usage: uv run terraform.py [terraform_arguments...]
 
-IMPORTANT: This script can only be run from 'preview' or 'production' directories
-
 This script performs the following preprocessing before running terraform:
-1. Validates current directory is 'preview' or 'production'
+1. Validates current directory has a Terraform {} block in it
 2. Consolidates all .tf files from subdirectories into a single temporary file
 3. Passes all arguments to terraform command
 
 Examples:
   cd preview
   uv run ../src/terraform.py --help
-  uv run  ../src/terraform.py version
+  uv run ../src/terraform.py version
   uv run ../src/terraform.py init
   uv run ../src/terraform.py plan -var-file=terraform.tfvars.json
   uv run ../src/terraform.py apply -var-file=terraform.tfvars.json
-
-The script will:
-- Verify you're in preview/ or production/ directory
-- Find all .tf files in subdirectories (like apps/*.tf, group/*.tf)
-- Append them all into a single consolidated temporary file
-- Run the actual terraform command with all provided arguments
-- Clean up the temporary file when done
-
-Note: This script prevents infinite recursion by detecting if it's already running
 """
 
 import os
@@ -37,7 +26,6 @@ from pathlib import Path
 
 # Global constants
 CONSOLIDATED_FILE = "_consolidated.tf"
-ALLOWED_DIRECTORIES = ["preview", "production"]
 
 def log_info(message):
     """Print an info message"""
