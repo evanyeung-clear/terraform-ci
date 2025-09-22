@@ -59,18 +59,14 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-
       - name: Initialize Terraform
         env:
           TF_TOKEN_APP_TERRAFORM_IO: ${{ secrets.TF_TOKEN_APP_TERRAFORM_IO }}
           TF_CLOUD_ORGANIZATION: ${{ secrets.TF_CLOUD_ORGANIZATION }}
-      #     TF_WORKSPACE: ${{ inputs.directory }}
-      #   run: |
-      #     terraform init -input=false
-      #     terraform fmt -check
-      #     terraform validate -no-color
         run: |
-          docker compose run terraform init -input=false
+          docker compose exec terraform init -input=false
+          docker compose exec terraform fmt -check
+          docker compose exec terraform validate -no-color
       
       - name: Get Changed Terraform Targets
         uses: ./.github/shared-actions/tf-targets
@@ -83,7 +79,6 @@ jobs:
         env:
           TF_TOKEN_APP_TERRAFORM_IO: ${{ secrets.TF_TOKEN_APP_TERRAFORM_IO }}
           TF_CLOUD_ORGANIZATION: ${{ secrets.TF_CLOUD_ORGANIZATION }}
-        #   TF_WORKSPACE: ${{ inputs.directory }}
         run: |
           # Build terraform plan command based on vars file and SOPS usage
           cmd="terraform plan -no-color -input=false"
@@ -112,7 +107,7 @@ jobs:
           
           # handle errors and capture output
           set +e
-          docker compose run $cmd 2>&1 | tee tf.console.txt
+          docker compose exec $cmd 2>&1 | tee tf.console.txt
           status=${PIPESTATUS[0]}
           set -e
 
