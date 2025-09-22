@@ -12,10 +12,6 @@ on:
         description: "Directory to run Terraform in"
         required: true
         type: string
-      terraform_version:
-        description: "Terraform version to use"
-        required: false
-        type: string
       vars_file:
         description: "Optional path to Terraform variables file relative to the directory"
         required: false
@@ -42,26 +38,6 @@ jobs:
           fetch-depth: 0
           ref: ${{ github.head.ref }}
 
-      - name: Check for .terraform-version file
-        id: terraform-version
-        run: |
-          if [ -n "${{ inputs.terraform_version }}" ]; then
-            echo "Using terraform_version input: ${{ inputs.terraform_version }}"
-            echo "version=${{ inputs.terraform_version }}" >> $GITHUB_OUTPUT
-          elif [ -f ".terraform-version" ]; then
-            version=$(cat .terraform-version | tr -d '[:space:]')
-            echo "Found .terraform-version file with version: $version"
-            echo "version=$version" >> $GITHUB_OUTPUT
-          else
-            echo "No terraform version specified, using latest"
-            echo "version=" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: ${{ steps.terraform-version.outputs.version || null }}
-
       - name: Decrypt Terraform variables
         id: decrypt
         uses: ./.github/shared-actions/decrypt-sops
@@ -74,15 +50,20 @@ jobs:
           output_file: terraform.tfvars.json
           sops_age_key: ${{ secrets.sops_age_key }}
 
+      - name: Set up Docker Compose
+        uses: docker/setup-buildx-action@v2
+
       - name: Initialize Terraform
-        env:
-          TF_TOKEN_APP_TERRAFORM_IO: ${{ secrets.TF_TOKEN_APP_TERRAFORM_IO }}
-          TF_CLOUD_ORGANIZATION: ${{ secrets.TF_CLOUD_ORGANIZATION }}
-          TF_WORKSPACE: ${{ inputs.directory }}
+      #   env:
+      #     TF_TOKEN_APP_TERRAFORM_IO: ${{ secrets.TF_TOKEN_APP_TERRAFORM_IO }}
+      #     TF_CLOUD_ORGANIZATION: ${{ secrets.TF_CLOUD_ORGANIZATION }}
+      #     TF_WORKSPACE: ${{ inputs.directory }}
+      #   run: |
+      #     terraform init -input=false
+      #     terraform fmt -check
+      #     terraform validate -no-color
         run: |
-          terraform init -input=false
-          terraform fmt -check
-          terraform validate -no-color
+          docker compose run terraform init -input=false
       
       - name: Get Changed Terraform Targets
         uses: ./.github/shared-actions/tf-targets
@@ -92,10 +73,10 @@ jobs:
 
       - name: Run Terraform Plan
         id: plan
-        env:
-          TF_TOKEN_APP_TERRAFORM_IO: ${{ secrets.TF_TOKEN_APP_TERRAFORM_IO }}
-          TF_CLOUD_ORGANIZATION: ${{ secrets.TF_CLOUD_ORGANIZATION }}
-          TF_WORKSPACE: ${{ inputs.directory }}
+        # env:
+        #   TF_TOKEN_APP_TERRAFORM_IO: ${{ secrets.TF_TOKEN_APP_TERRAFORM_IO }}
+        #   TF_CLOUD_ORGANIZATION: ${{ secrets.TF_CLOUD_ORGANIZATION }}
+        #   TF_WORKSPACE: ${{ inputs.directory }}
         run: |
           # Build terraform plan command based on vars file and SOPS usage
           cmd="terraform plan -no-color -input=false"
@@ -121,11 +102,13 @@ jobs:
           echo "Terraform command: $cmd"
 
           start=$(date +%s)
+          
           # handle errors and capture output
           set +e
-          $cmd 2>&1 | tee tf.console.txt
+          docker compose run $cmd 2>&1 | tee tf.console.txt
           status=${PIPESTATUS[0]}
           set -e
+
           end=$(date +%s)
 
           echo "duration=$((end - start))" >> $GITHUB_OUTPUT

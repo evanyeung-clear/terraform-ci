@@ -1,0 +1,7 @@
+services:
+  terraform:
+    build: ../
+    working_dir: /terraform
+    volumes:
+      - "./:/terraform"
+      - "~/.aws/credentials:/root/.aws/credentials"

@@ -1,0 +1,14 @@
+services:
+  terraform:
+    build:
+      context: https://github.com/evanyeung-clear/terraform-ci.git
+      args:
+        TERRAFORM_VERSION: "1.8.5"
+    working_dir: /terraform
+    volumes:
+      - "./:/terraform"
+      - "~/.aws/credentials:/root/.aws/credentials"
+    environment:
+      - TF_WORKSPACE=preview
+      - TF_CLOUD_ORGANIZATION
+      - TF_TOKEN_APP_TERRAFORM_IO
