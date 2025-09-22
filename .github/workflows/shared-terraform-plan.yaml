@@ -54,9 +54,9 @@ jobs:
         uses: docker/setup-buildx-action@v2
 
       - name: Initialize Terraform
-      #   env:
-      #     TF_TOKEN_APP_TERRAFORM_IO: ${{ secrets.TF_TOKEN_APP_TERRAFORM_IO }}
-      #     TF_CLOUD_ORGANIZATION: ${{ secrets.TF_CLOUD_ORGANIZATION }}
+        env:
+          TF_TOKEN_APP_TERRAFORM_IO: ${{ secrets.TF_TOKEN_APP_TERRAFORM_IO }}
+          TF_CLOUD_ORGANIZATION: ${{ secrets.TF_CLOUD_ORGANIZATION }}
       #     TF_WORKSPACE: ${{ inputs.directory }}
       #   run: |
       #     terraform init -input=false
@@ -73,9 +73,9 @@ jobs:
 
       - name: Run Terraform Plan
         id: plan
-        # env:
-        #   TF_TOKEN_APP_TERRAFORM_IO: ${{ secrets.TF_TOKEN_APP_TERRAFORM_IO }}
-        #   TF_CLOUD_ORGANIZATION: ${{ secrets.TF_CLOUD_ORGANIZATION }}
+        env:
+          TF_TOKEN_APP_TERRAFORM_IO: ${{ secrets.TF_TOKEN_APP_TERRAFORM_IO }}
+          TF_CLOUD_ORGANIZATION: ${{ secrets.TF_CLOUD_ORGANIZATION }}
         #   TF_WORKSPACE: ${{ inputs.directory }}
         run: |
           # Build terraform plan command based on vars file and SOPS usage
