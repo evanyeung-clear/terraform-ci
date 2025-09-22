@@ -239,11 +239,16 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
       
-      - name: Build Docker image
-        uses: docker/build-push-action@v4
-        with:
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+      - name: Bake with Compose
+        uses: docker/bake-action@v6
+        with: 
+          set: |
+            *.cache-from=type=gha
+            *.cache-to=type=gha,mode=max
+
+      - name: Compose Up Terraform Container
+        run: |
+          docker compose up -d terraform
 
       - name: Initialize Terraform
         env:
@@ -469,11 +474,16 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
       
-      - name: Build Docker image
-        uses: docker/build-push-action@v4
-        with:
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+      - name: Bake with Compose
+        uses: docker/bake-action@v6
+        with: 
+          set: |
+            *.cache-from=type=gha
+            *.cache-to=type=gha,mode=max
+
+      - name: Compose Up Terraform Container
+        run: |
+          docker compose up -d terraform
 
       - name: Initialize Terraform
         env:
