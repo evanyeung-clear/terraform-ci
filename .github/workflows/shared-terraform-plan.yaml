@@ -50,8 +50,15 @@ jobs:
           output_file: terraform.tfvars.json
           sops_age_key: ${{ secrets.sops_age_key }}
 
-      - name: Set up Docker Compose
+      - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
+      
+      - name: Build Docker image
+        uses: docker/build-push-action@v4
+        with:
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
 
       - name: Initialize Terraform
         env:
