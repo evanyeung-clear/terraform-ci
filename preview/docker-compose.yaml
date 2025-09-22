@@ -1,6 +1,9 @@
 services:
   terraform:
-    build: ../
+    build:
+      context: ../
+      args:
+        TERRAFORM_VERSION: "1.8.5"
     working_dir: /terraform
     volumes:
       - "./:/terraform"

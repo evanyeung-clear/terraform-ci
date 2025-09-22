@@ -16,11 +16,4 @@ COPY /src /src
 WORKDIR /src
 RUN uv sync --locked
 
-# Make terraform.py executable and available
-# RUN chmod +x /src/terraform.py
-# ENV PATH="/app/src:$PATH"
-
-# WORKDIR /workspace
-
 ENTRYPOINT [ "uv", "run", "--script", "/src/terraform.py" ]
-# ENTRYPOINT [ "terraform" ]
