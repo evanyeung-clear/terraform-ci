@@ -102,23 +102,35 @@ jobs:
           echo "Terraform command: $cmd"
 
           start=$(date +%s)
-          docker compose run $cmd 2> >(tee tf.console.txt) > >(tee tf.console.txt)
+          
+          # handle errors and capture output
+          set +e
+          docker compose run $cmd 2>&1 | tee tf.console.txt
+          status=${PIPESTATUS[0]}
+          set -e
+
           end=$(date +%s)
 
           echo "duration=$((end - start))" >> $GITHUB_OUTPUT
           echo "cmd=$cmd" >> $GITHUB_OUTPUT
+
+          if [ $status -ne 0 ]; then
+            echo "Terraform plan failed."
+            exit 1
+          fi
 
       - name: Format Terraform Plan Diff
         id: diff
         run: |
           # Strip extra lines from tf.console.txt
           awk '
-            /Terraform used the selected providers/ { found_start = 1 }
-            found_start {
-              print
-              if (/^(Error:|Plan:|Apply complete!|No changes.|Success)/) { exit }
-            }
-          ' tf.console.txt > tf.console.stripped.txt || true
+            BEGIN {skip=0}
+            /^Warning:/ {skip=1}
+            skip && (/^Note that the -target option/ || /^The -target option/) {skip=2; next} skip==2 && NF==0 {skip=0; next}
+            skip {next}
+            {print}
+          ' tf.console.txt | 
+          awk '/^─────/,EOF {next} {print}' > tf.console.stripped.txt || true
 
           # Filter lines starting with "  # " and prepend diff-specific symbols based on specific keywords.
           # https://github.com/OP5dev/TF-via-PR
@@ -128,8 +140,9 @@ jobs:
             -e 's/^  # \(.* be updated\|.* be replaced\)/! \1/' \
             -e 's/^  # \(.* be read\)/~ \1/' \
             -e 's/^  # \(.*\)/# \1/' > tf.diff.txt || true
+          
+          # Grab the summary lines for the expand text
           awk '/^(Error:|Plan:|Apply complete!|No changes.|Success)/' tf.console.txt > tf.summary.txt
-
       - name: Comment Terraform Plan
         uses: actions/github-script@v7
         with:
@@ -145,53 +158,64 @@ jobs:
               }
             }
 
+            // Helper function to mark previous comment as out of date
+            async function markOutdated(search, notice) {
+              const comments = await github.rest.issues.listComments({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                per_page: 100
+              });
+
+              for (const comment of comments.data) {
+                if (comment.body && comment.body.includes(search) && !comment.body.includes(notice)) {
+                  // Prepend '> ' to each line of comment.body for quoting
+                  const quotedBody = comment.body.split('\n').map(line => '> ' + line).join('\n');
+                  await github.rest.issues.updateComment({
+                    comment_id: comment.id,
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    body: '<details><summary>' + notice + '</summary>\n\n' + quotedBody + '\n</details>'
+                  });
+
+                  // Hide comment
+                  const mutation = `mutation($subjectId:ID!, $classifier:ReportedContentClassifiers!) {
+                    minimizeComment(input: { subjectId: $subjectId, classifier: $classifier }) {
+                      clientMutationId
+                      minimizedComment {
+                        isMinimized
+                        minimizedReason
+                        viewerCanMinimize
+                      }
+                    }
+                  }`;
+
+                  console.log(`Hiding comment ${comment.id} (${comment.node_id})`);
+
+                  const result = await github.graphql(mutation, {
+                    subjectId: comment.node_id,
+                    classifier: 'OUTDATED'
+                  });
+
+                  console.log(result);
+                }
+              }
+            }
+
             const runUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
             const diff = safeReadFile('${{ inputs.directory }}/tf.diff.txt', 'No changes detected');
             const summary = safeReadFile('${{ inputs.directory }}/tf.summary.txt', 'View output for details');
             const cleanPlan = safeReadFile('${{ inputs.directory }}/tf.console.stripped.txt', 'No plan output available');
 
             // Find previous plan comment and mark as out of date
-            const planCommentTag = `**Terraform plan** (${{ inputs.directory }})`;
-            const outOfDateNotice = 'This plan is out of date. A new plan has been performed.';
-            const comments = await github.rest.issues.listComments({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              per_page: 100
-            });
-            for (const comment of comments.data) {
-              if (comment.body && comment.body.includes(planCommentTag) && !comment.body.includes(outOfDateNotice)) {
-                // Prepend '> ' to each line of comment.body for quoting
-                const quotedBody = comment.body.split('\n').map(line => '> ' + line).join('\n');
-                await github.rest.issues.updateComment({
-                  comment_id: comment.id,
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  body: '<details><summary>' + outOfDateNotice + '</summary>\n\n' + quotedBody + '\n</details>'
-                });
+            const planCommentTag = `**Terraform plan** (Okta ${{ inputs.directory }})`;
+            const planOutOfDateNotice = 'This plan is out of date. A new plan has been performed.';
+            markOutdated(planCommentTag, planOutOfDateNotice);
 
-                // Hide comment
-                const mutation = `mutation($subjectId:ID!, $classifier:ReportedContentClassifiers!) {
-                  minimizeComment(input: { subjectId: $subjectId, classifier: $classifier }) {
-                    clientMutationId
-                    minimizedComment {
-                      isMinimized
-                      minimizedReason
-                      viewerCanMinimize
-                    }
-                  }
-                }`;
-
-                console.log(`Hiding comment ${comment.id} (${comment.node_id})`);
-
-                const result = await github.graphql(mutation, {
-                  subjectId: comment.node_id,
-                  classifier: 'OUTDATED'
-                });
-
-                console.log(result);
-              }
-            }
+            // Find previous apply comment and mark as out of date
+            const applyCommentTag = `**Terraform apply** (Okta ${{ inputs.directory }})`;
+            const applyOutOfDateNotice = 'This apply is out of date. A new apply has been performed.';
+            markOutdated(applyCommentTag, applyOutOfDateNotice);
 
             var body = `
             **Terraform plan** (Okta ${{ inputs.directory }}) ran in [${{ steps.plan.outputs.duration }} seconds](${runUrl}).

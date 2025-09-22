@@ -94,11 +94,6 @@ jobs:
           echo "Lock should not be unlocked - either no lock exists or lock belongs to different branch"
           exit 0
 
-      - name: Release lock
-        uses: forevanyeung/lock@e43a0b2920fca2eb45f02bde126d32e09949d419
-        with:
-          mode: unlock
-
       - name: Checkout repository
         uses: actions/checkout@v4
 
@@ -121,6 +116,11 @@ jobs:
           style: flat-square
           filename: latest-${{ inputs.directory }}-branch.svg
           github_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Release lock
+        uses: forevanyeung/lock@e43a0b2920fca2eb45f02bde126d32e09949d419
+        with:
+          mode: unlock
 
       - name: Comment lock released
         uses: actions/github-script@v7
