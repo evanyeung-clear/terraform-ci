@@ -55,6 +55,9 @@ jobs:
       
       - name: Bake with Compose
         uses: docker/bake-action@v6
+        env:
+          TF_TOKEN_APP_TERRAFORM_IO: ${{ secrets.TF_TOKEN_APP_TERRAFORM_IO }}
+          TF_CLOUD_ORGANIZATION: ${{ secrets.TF_CLOUD_ORGANIZATION }}
         with: 
           set: |
             *.cache-from=type=gha
@@ -65,9 +68,9 @@ jobs:
           docker compose up -d terraform
 
       - name: Initialize Terraform
-        env:
-          TF_TOKEN_APP_TERRAFORM_IO: ${{ secrets.TF_TOKEN_APP_TERRAFORM_IO }}
-          TF_CLOUD_ORGANIZATION: ${{ secrets.TF_CLOUD_ORGANIZATION }}
+        # env:
+        #   TF_TOKEN_APP_TERRAFORM_IO: ${{ secrets.TF_TOKEN_APP_TERRAFORM_IO }}
+        #   TF_CLOUD_ORGANIZATION: ${{ secrets.TF_CLOUD_ORGANIZATION }}
         run: |
           docker compose exec terraform init -input=false
           docker compose exec terraform fmt -check
@@ -81,9 +84,9 @@ jobs:
 
       - name: Run Terraform Plan
         id: plan
-        env:
-          TF_TOKEN_APP_TERRAFORM_IO: ${{ secrets.TF_TOKEN_APP_TERRAFORM_IO }}
-          TF_CLOUD_ORGANIZATION: ${{ secrets.TF_CLOUD_ORGANIZATION }}
+        # env:
+        #   TF_TOKEN_APP_TERRAFORM_IO: ${{ secrets.TF_TOKEN_APP_TERRAFORM_IO }}
+        #   TF_CLOUD_ORGANIZATION: ${{ secrets.TF_CLOUD_ORGANIZATION }}
         run: |
           # Build terraform plan command based on vars file and SOPS usage
           cmd="terraform plan -no-color -input=false"
