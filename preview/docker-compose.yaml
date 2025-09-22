@@ -1,7 +1,7 @@
 services:
   terraform:
     build:
-      context: ../
+      context: https://github.com/evanyeung-clear/terraform-ci.git
       args:
         TERRAFORM_VERSION: "1.8.5"
     working_dir: /terraform
