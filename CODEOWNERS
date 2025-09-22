@@ -1,5 +1,5 @@
 # Set the default owner for all files
-* @forevanyeung
+* @evanyeung-clear @forevanyeung
 
 # Set the GitHub Actions bot as the approver for the preview folder
 /preview/ @github-actions
