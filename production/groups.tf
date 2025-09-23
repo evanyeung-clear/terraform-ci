@@ -22,13 +22,3 @@ resource "okta_group" "example5" {
   name        = "Example5"
   description = "My Example Group"
 }
-
-resource "okta_group" "example6" {
-  name        = "Example6"
-  description = "My Example Group"
-}
-
-import {
-  to = okta_group.example6
-  id = "00gq7829t9tbGRpf15d7"
-}
