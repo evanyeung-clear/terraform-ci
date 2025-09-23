@@ -32,3 +32,8 @@ import {
   to = okta_group.example6
   id = "00gq7829t9tbGRpf15d7"
 }
+
+resource "okta_group" "example7" {
+  name        = "Example7"
+  description = "My Example Group"
+}
