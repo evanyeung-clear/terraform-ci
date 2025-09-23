@@ -59,7 +59,7 @@ jobs:
           TF_TOKEN_APP_TERRAFORM_IO: ${{ secrets.TF_TOKEN_APP_TERRAFORM_IO }}
           TF_CLOUD_ORGANIZATION: ${{ secrets.TF_CLOUD_ORGANIZATION }}
         with: 
-          file: ${{ inputs.directory }}/docker-compose.yaml
+          source: "{{defaultContext}}:${{ inputs.directory }}"
           set: |
             *.cache-from=type=gha
             *.cache-to=type=gha,mode=max
