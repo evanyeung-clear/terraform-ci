@@ -60,6 +60,7 @@ jobs:
           set: |
             *.cache-from=type=gha
             *.cache-to=type=gha,mode=max
+            *.output=type=docker
 
       - name: Initialize Terraform
         env:
