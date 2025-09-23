@@ -242,22 +242,20 @@ jobs:
       - name: Bake with Compose
         uses: docker/bake-action@v6
         with: 
+          source: "{{defaultContext}}:${{ inputs.directory }}"
           set: |
             *.cache-from=type=gha
             *.cache-to=type=gha,mode=max
-
-      - name: Compose Up Terraform Container
-        run: |
-          docker compose up -d terraform
+            *.output=type=docker
 
       - name: Initialize Terraform
         env:
           TF_TOKEN_APP_TERRAFORM_IO: ${{ secrets.TF_TOKEN_APP_TERRAFORM_IO }}
           TF_CLOUD_ORGANIZATION: ${{ secrets.TF_CLOUD_ORGANIZATION }}
         run: |
-          docker compose exec terraform init -input=false
-          docker compose exec terraform fmt -check
-          docker compose exec terraform validate -no-color
+          docker compose run --rm terraform init -input=false
+          docker compose run --rm terraform fmt -check
+          docker compose run --rm terraform validate -no-color
 
       - name: Get Changed Terraform Targets
         uses: ./.github/shared-actions/tf-targets
@@ -297,7 +295,7 @@ jobs:
           start=$(date +%s)
           # handle errors and capture output
           set +e
-          docker compose exec $cmd 2>&1 | tee tf.console.txt
+          docker compose run $cmd 2>&1 | tee tf.console.txt
           status=${PIPESTATUS[0]}
           set -e
           end=$(date +%s)
@@ -477,22 +475,20 @@ jobs:
       - name: Bake with Compose
         uses: docker/bake-action@v6
         with: 
+          source: "{{defaultContext}}:${{ inputs.directory }}"
           set: |
             *.cache-from=type=gha
             *.cache-to=type=gha,mode=max
-
-      - name: Compose Up Terraform Container
-        run: |
-          docker compose up -d terraform
+            *.output=type=docker
 
       - name: Initialize Terraform
         env:
           TF_TOKEN_APP_TERRAFORM_IO: ${{ secrets.TF_TOKEN_APP_TERRAFORM_IO }}
           TF_CLOUD_ORGANIZATION: ${{ secrets.TF_CLOUD_ORGANIZATION }}
         run: |
-          docker compose exec terraform init -input=false
-          docker compose exec terraform fmt -check
-          docker compose exec terraform validate -no-color
+          docker compose run --rm terraform init -input=false
+          docker compose run --rm terraform fmt -check
+          docker compose run --rm terraform validate -no-color
 
       - name: Run Terraform Apply
         id: apply
@@ -522,7 +518,7 @@ jobs:
           start=$(date +%s)
           # handle errors and capture output
           set +e
-          docker compose exec $cmd 2>&1 | tee tf.console.txt
+          docker compose run $cmd 2>&1 | tee tf.console.txt
           status=${PIPESTATUS[0]}
           set -e
           end=$(date +%s)

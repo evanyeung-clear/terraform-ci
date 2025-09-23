@@ -67,9 +67,9 @@ jobs:
           TF_TOKEN_APP_TERRAFORM_IO: ${{ secrets.TF_TOKEN_APP_TERRAFORM_IO }}
           TF_CLOUD_ORGANIZATION: ${{ secrets.TF_CLOUD_ORGANIZATION }}
         run: |
-          docker compose run terraform init -input=false
-          docker compose run terraform fmt -check
-          docker compose run terraform validate -no-color
+          docker compose run --rm terraform init -input=false
+          docker compose run --rm terraform fmt -check
+          docker compose run --rm terraform validate -no-color
 
       - name: Get Changed Terraform Targets
         uses: ./.github/shared-actions/tf-targets
