@@ -61,19 +61,15 @@ jobs:
             *.cache-from=type=gha
             *.cache-to=type=gha,mode=max
 
-      - name: Compose Up Terraform Container
-        run: |
-          docker compose up -d terraform
-
       - name: Initialize Terraform
         env:
           TF_TOKEN_APP_TERRAFORM_IO: ${{ secrets.TF_TOKEN_APP_TERRAFORM_IO }}
           TF_CLOUD_ORGANIZATION: ${{ secrets.TF_CLOUD_ORGANIZATION }}
         run: |
-          docker compose exec terraform init -input=false
-          docker compose exec terraform fmt -check
-          docker compose exec terraform validate -no-color
-      
+          docker compose run terraform init -input=false
+          docker compose run terraform fmt -check
+          docker compose run terraform validate -no-color
+
       - name: Get Changed Terraform Targets
         uses: ./.github/shared-actions/tf-targets
         id: targets
@@ -113,7 +109,7 @@ jobs:
           
           # handle errors and capture output
           set +e
-          docker compose exec $cmd 2>&1 | tee tf.console.txt
+          docker compose run $cmd 2>&1 | tee tf.console.txt
           status=${PIPESTATUS[0]}
           set -e
 
