@@ -35,6 +35,7 @@ import importlib
 from pathlib import Path
 from typing import List, Dict, Any
 from okta.client import Client as OktaClient
+from import_okta import groups, users, applications
 
 class OktaAPIManager:
     """Manages Okta API operations using the Okta Python SDK."""
@@ -222,14 +223,11 @@ async def main():
             print(f"{'='*60}")
 
             if resource_type == 'groups':
-                groups_module = importlib.import_module('import.groups')  # package named 'import'
-                await groups_module.process_groups(okta)
+                await groups.process_groups(okta)
             elif resource_type == 'users':
-                users_module = importlib.import_module('import.users')
-                await users_module.process_users(okta)
+                await users.process_users(okta)
             elif resource_type == 'apps':
-                applications_module = importlib.import_module('import.applications')
-                await applications_module.process_applications(okta)
+                await applications.process_applications(okta)
 
         print(f"\n{'='*60}")
         print("PROCESSING COMPLETE")
