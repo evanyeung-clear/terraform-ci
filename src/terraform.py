@@ -29,11 +29,11 @@ CONSOLIDATED_FILE = "_consolidated.tf"
 
 def log_info(message):
     """Print an info message"""
-    print(f"[INFO] {message}")
+    print(f"[INFO] {message}", file=sys.stderr)
 
 def log_error(message):
     """Print an error message"""
-    print(f"[ERROR] {message}")
+    print(f"[ERROR] {message}", file=sys.stderr)
 
 def check_infinite_recursion():
     """Prevent infinite recursion by checking environment variable"""
