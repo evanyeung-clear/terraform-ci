@@ -31,117 +31,10 @@ import sys
 import json
 import asyncio
 import subprocess
-import importlib
 from pathlib import Path
-from typing import List, Dict, Any
-from okta.client import Client as OktaClient
-from import_okta import groups, users, applications
-
-class OktaAPIManager:
-    """Manages Okta API operations using the Okta Python SDK."""
-
-    def __init__(self, directory: str):
-        """Initialize the Okta client with OAuth2 authentication from terraform config."""
-        self.client = None
-        self.directory = directory
-        self.base_dir = Path(__file__).parent.parent
-        self.output_dir = self.base_dir / self.directory
-        self._setup_client()
-
-    def _load_terraform_config(self) -> Dict[str, Any]:
-        terraform_file = self.base_dir / self.directory / "terraform.plan.enc.tfvars.json"
-
-        if not terraform_file.exists():
-            raise FileNotFoundError(f"terraform.plan.enc.tfvars.json not found in directory: {self.directory}")
-        print(f"Loading configuration from: {terraform_file}")
-
-        try:
-            # Use SOPS to decrypt the file
-            print("Running SOPS to decrypt terraform configuration...")
-            result = subprocess.run(
-                ["sops", "--decrypt", str(terraform_file)],
-                capture_output=True,
-                text=True,
-                check=True
-            )
-
-            print("SOPS decryption successful, parsing JSON...")
-            if not result.stdout.strip():
-                raise ValueError("SOPS returned empty output")
-
-            config_data = json.loads(result.stdout)
-            print("Successfully decrypted and parsed terraform configuration")
-
-            # Debug: Show the structure without sensitive data
-            if isinstance(config_data, dict):
-                print(f"Configuration contains {len(config_data)} keys")
-            else:
-                print(f"Warning: Configuration is not a dictionary, it's a {type(config_data)}")
-
-            return config_data
-        except Exception as e:
-            print(f"Failed to load terraform config: {e}")
-            raise
-
-    def _setup_client(self):
-        """Set up the Okta client with OAuth2 authentication."""
-        config_data = self._load_terraform_config()
-
-        if not config_data:
-            raise ValueError("Configuration data is None or empty")
-        
-        # Extract Okta configuration from terraform variables
-        try:
-            org_name = config_data.get('okta_org_name')
-            base_url = config_data.get('okta_base_url', 'okta.com')
-            client_id = config_data.get('okta_api_client_id')
-            private_key_id = config_data.get('okta_api_private_key_id')
-            private_key = config_data.get('okta_api_private_key')
-            scopes = config_data.get('okta_api_scopes', ['okta.groups.read', 'okta.users.read'])
-
-            if not all([org_name, client_id, private_key_id, private_key]):
-                missing = []
-                if not org_name: missing.append('okta_org_name')
-                if not client_id: missing.append('okta_api_client_id')
-                if not private_key_id: missing.append('okta_api_private_key_id')
-                if not private_key: missing.append('okta_api_private_key')
-
-                raise ValueError(
-                    f"Missing required Okta configuration in terraform file: {', '.join(missing)}"
-                )
-
-            config = {
-                'orgUrl': f"https://{org_name}.{base_url}",
-                'authorizationMode': 'PrivateKey',
-                'clientId': client_id,
-                'privateKey': private_key,
-                'kid': private_key_id,
-                'scopes': scopes,
-                'logging': {
-                    'enabled': True
-                }
-            }
-
-            self.client = OktaClient(config)
-
-        except Exception as e:
-            raise ValueError(f"Error configuring Okta client: {e}")
-
-    # Retrieval and processing functions moved to package modules under src/import
-    # (groups.py, users.py, applications.py). This class now focuses solely on
-    # client setup/teardown and exposing directory metadata.
-
-    async def close(self):
-        """Close the Okta client connection."""
-        if self.client and hasattr(self.client, 'close'):
-            await self.client.close()
-        elif self.client and hasattr(self.client, '_http_client'):
-            # Try to close the underlying HTTP client if it exists
-            if hasattr(self.client._http_client, 'close'):
-                await self.client._http_client.close()
-        # If no close method exists, just set to None
-        self.client = None
-
+from typing import List
+# from OktaImport.api import OktaAPIManager
+# from OktaImport import groups, users, applications
 
 def parse_arguments() -> tuple[str, list[str]]:
     """Parse command line arguments."""
@@ -199,6 +92,27 @@ def parse_arguments() -> tuple[str, list[str]]:
 
     return directory, resource_types
 
+def export_terraform_state(directory: str) -> None:
+    """Export current terraform state to JSON."""
+    try:
+        result = subprocess.run(
+            ["docker", "compose", "run", "terraform", "show", "--json"],
+            cwd=directory,
+            capture_output=True,
+            text=True,
+            check=True
+        )
+
+        output_file = Path(directory) / "terraform_state.json"
+        with open(output_file, 'w') as f:
+            f.write(result.stdout)
+        print(f"Terraform state exported to {output_file}")
+    except subprocess.CalledProcessError as e:
+        print(f"Error exporting terraform state: {e.stderr}", file=sys.stderr)
+        return None
+    except json.JSONDecodeError as e:
+        print(f"Error parsing terraform state JSON: {str(e)}", file=sys.stderr)
+        return None
 
 async def main():
     """Main function to run the Okta terraform import tool."""
@@ -213,30 +127,33 @@ async def main():
         print(f"Output directory: {directory}")
         print()
 
-        # Initialize the Okta API manager with the specified directory
-        okta = OktaAPIManager(directory)
+        # Export current terraform state to JSON
+        export_terraform_state(directory)
 
-        # Process each resource type
-        for resource_type in resource_types:
-            print(f"\n{'='*60}")
-            print(f"Processing {resource_type.upper()}")
-            print(f"{'='*60}")
+    #     # Initialize (or retrieve) the singleton Okta API manager for the directory
+    #     okta = OktaAPIManager(directory)
 
-            if resource_type == 'groups':
-                await groups.process_groups(okta)
-            elif resource_type == 'users':
-                await users.process_users(okta)
-            elif resource_type == 'apps':
-                await applications.process_applications(okta)
+    #     # Process each resource type (skipping ones already in state)
+    #     for resource_type in resource_types:
+    #         print(f"\n{'='*60}")
+    #         print(f"Processing {resource_type.upper()}")
+    #         print(f"{'='*60}")
 
-        print(f"\n{'='*60}")
-        print("PROCESSING COMPLETE")
-        print(f"{'='*60}")
-        print(f"Terraform import files have been written to the '{directory}' directory.")
-        print("You can now run 'terraform plan -generate-config-out' to see what resources will be imported.")
+    #         if resource_type == 'groups':
+    #             await groups.process_groups(okta, existing_ids=okta.group_ids)
+    #         elif resource_type == 'users':
+    #             await users.process_users(okta, existing_ids=okta.user_ids)
+    #         elif resource_type == 'apps':
+    #             await applications.process_applications(okta, existing_ids=okta.app_ids)
 
-        # Close the client
-        await okta.close()
+    #     print(f"\n{'='*60}")
+    #     print("PROCESSING COMPLETE")
+    #     print(f"{'='*60}")
+    #     print(f"Terraform import files have been written to the '{directory}' directory.")
+    #     print("You can now run 'terraform plan -generate-config-out' to see what resources will be imported.")
+
+    #     # Close the client
+    #     await okta.close()
 
     except KeyboardInterrupt:
         print("\nOperation cancelled by user.")

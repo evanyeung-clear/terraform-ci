@@ -32,3 +32,14 @@ def sort_entities(items: Iterable[Any], key_attr: str):
         return (current or '').lower() if isinstance(current, str) else current
 
     return sorted(items, key=lambda o: resolve(o, key_attr))
+
+
+def terraform_import_block(resource_type: str, resource_name: str, resource_id: str) -> str:
+    """Generate a terraform import block string."""
+    
+    string = (f"import {{"
+              f"  to = {resource_type}.{resource_name}"
+              f"  id = \"{resource_id}\""
+              f"}}")
+
+    return string
