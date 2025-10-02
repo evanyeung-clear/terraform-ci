@@ -6,7 +6,7 @@ This script uses the Okta Python SDK to generate Terraform import blocks for Okt
 It reads OAuth2 credentials from a terraform.plan.enc.tfvars.json file in a specified directory.
 
 Usage:
-    python import.py <directory_name> [--type=<types>]
+    import.py <directory_name> [--type=<types>]
 
     Where <directory_name> is the directory containing terraform.plan.enc.tfvars.json
     (e.g., 'preview' or 'production')
@@ -19,9 +19,9 @@ Usage:
     If no --type is specified, all resource types will be processed.
 
 Examples:
-    python import.py preview
-    python import.py production --type=groups
-    python import.py preview --type=groups,users
+    import.py preview
+    import.py production --type=groups
+    import.py preview --type=groups,users
 
 The script will look for terraform.plan.enc.tfvars.json in the specified directory and use
 SOPS to decrypt the Okta OAuth2 credentials.
@@ -32,14 +32,12 @@ import json
 import asyncio
 import subprocess
 from pathlib import Path
-from typing import List
-# from OktaImport.api import OktaAPIManager
-# from OktaImport import groups, users, applications
+from OktaTFImport import OktaTFImport
 
 def parse_arguments() -> tuple[str, list[str]]:
     """Parse command line arguments."""
     if len(sys.argv) < 2:
-        print("Usage: python import.py <directory_name> [--type=<types>]")
+        print("Usage: import.py <directory_name> [--type=<types>]")
         print("\nWhere <directory_name> is the directory containing terraform.plan.enc.tfvars.json")
         print("(relative to the base project directory, e.g., 'preview' or 'production')")
         print("and <types> is a comma-separated list of Okta resources to read")
@@ -48,9 +46,9 @@ def parse_arguments() -> tuple[str, list[str]]:
         print("  users     - Okta users")
         print("  apps      - Okta applications")
         print("\nExamples:")
-        print("  python import.py preview")
-        print("  python import.py production --type=groups")
-        print("  python import.py preview --type=groups,users")
+        print("  import.py preview")
+        print("  import.py production --type=groups")
+        print("  import.py preview --type=groups,users")
 
         # Show available directories
         try:
@@ -92,7 +90,7 @@ def parse_arguments() -> tuple[str, list[str]]:
 
     return directory, resource_types
 
-def export_terraform_state(directory: str) -> None:
+def export_terraform_state(directory: str) -> str | None:
     """Export current terraform state to JSON."""
     try:
         result = subprocess.run(
@@ -103,10 +101,11 @@ def export_terraform_state(directory: str) -> None:
             check=True
         )
 
-        output_file = Path(directory) / "terraform_state.json"
+        output_file = Path(directory) / "terraform.tfstate"
         with open(output_file, 'w') as f:
             f.write(result.stdout)
-        print(f"Terraform state exported to {output_file}")
+            print(f"Terraform state exported to {output_file}")
+        return output_file
     except subprocess.CalledProcessError as e:
         print(f"Error exporting terraform state: {e.stderr}", file=sys.stderr)
         return None
@@ -128,32 +127,55 @@ async def main():
         print()
 
         # Export current terraform state to JSON
-        export_terraform_state(directory)
+        state_file = export_terraform_state(directory)
 
-    #     # Initialize (or retrieve) the singleton Okta API manager for the directory
-    #     okta = OktaAPIManager(directory)
+        org_name = ""
+        base_url = ""
+        client_id = ""
+        private_key_id = ""
+        private_key = ""
+        scopes = ["okta.groups.read", "okta.users.read"]
 
-    #     # Process each resource type (skipping ones already in state)
-    #     for resource_type in resource_types:
-    #         print(f"\n{'='*60}")
-    #         print(f"Processing {resource_type.upper()}")
-    #         print(f"{'='*60}")
+        config = {
+            "orgUrl": f"https://{org_name}.{base_url}",
+            "authorizationMode": "PrivateKey",
+            "clientId": client_id,
+            "privateKey": private_key,
+            "kid": private_key_id,
+            "scopes": scopes,
+            "logging": {"enabled": True},
+        }
 
-    #         if resource_type == 'groups':
-    #             await groups.process_groups(okta, existing_ids=okta.group_ids)
-    #         elif resource_type == 'users':
-    #             await users.process_users(okta, existing_ids=okta.user_ids)
-    #         elif resource_type == 'apps':
-    #             await applications.process_applications(okta, existing_ids=okta.app_ids)
+        # Initialize the OktaTFImport for the directory
+        okta = OktaTFImport(
+            directory=directory,
+            config=config,
+            state_file=state_file
+        )
 
-    #     print(f"\n{'='*60}")
-    #     print("PROCESSING COMPLETE")
-    #     print(f"{'='*60}")
-    #     print(f"Terraform import files have been written to the '{directory}' directory.")
-    #     print("You can now run 'terraform plan -generate-config-out' to see what resources will be imported.")
+        # Process each resource type (skipping ones already in state)
+        for resource_type in resource_types:
+            print(f"\n{'='*60}")
+            print(f"Processing {resource_type.upper()}")
+            print(f"{'='*60}")
 
-    #     # Close the client
-    #     await okta.close()
+            if resource_type == 'groups':
+                # await okta.process_groups()
+                pass
+            elif resource_type == 'users':
+                await okta.process_users()
+            elif resource_type == 'apps':
+                # await okta.process_applications()
+                pass
+
+        print(f"\n{'='*60}")
+        print("PROCESSING COMPLETE")
+        print(f"{'='*60}")
+        print(f"Terraform import files have been written to the '{directory}' directory.")
+        print("You can now run 'terraform plan -generate-config-out' to see what resources will be imported.")
+
+        # Close the client
+        await okta.close()
 
     except KeyboardInterrupt:
         print("\nOperation cancelled by user.")
