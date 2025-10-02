@@ -20,6 +20,7 @@ async def _get_all_users(self) -> List:
         print(f"Successfully retrieved {len(users)} users")
 
         ids = list(map(lambda user: {
+                    "type": "okta_user",
                     "id": user.id,
                     "name": sanitize_resource_name(user.profile.login)
                 }, users))
