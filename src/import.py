@@ -90,6 +90,17 @@ def parse_arguments() -> tuple[str, list[str]]:
 
     return directory, resource_types
 
+def read_terraform_config(directory: str) -> dict:
+    """Read the terraform plan configuration from the specified directory."""
+    try:
+        config_file = Path(directory) / "terraform.tfvars.json"
+        with open(config_file, 'r') as f:
+            print(f"Reading config from {config_file}")
+            return json.load(f)
+    except FileNotFoundError:
+        print(f"Error: terraform.tfvars.json not found in {directory}")
+        sys.exit(1)
+
 def export_terraform_state(directory: str) -> str | None:
     """Export current terraform state to JSON."""
     try:
@@ -126,15 +137,14 @@ async def main():
         print(f"Output directory: {directory}")
         print()
 
-        # Export current terraform state to JSON
-        state_file = export_terraform_state(directory)
-
-        org_name = ""
-        base_url = ""
-        client_id = ""
-        private_key_id = ""
-        private_key = ""
-        scopes = ["okta.groups.read", "okta.users.read"]
+        # Read Okta credentials from terraform.tfvars.json
+        tfvars = read_terraform_config(directory)
+        org_name = tfvars['okta_org_name']
+        base_url = tfvars['okta_base_url']
+        client_id = tfvars['okta_api_client_id']
+        private_key_id = tfvars['okta_api_private_key_id']
+        private_key = tfvars['okta_api_private_key']
+        scopes = tfvars['okta_api_scopes']
 
         config = {
             "orgUrl": f"https://{org_name}.{base_url}",
@@ -143,8 +153,11 @@ async def main():
             "privateKey": private_key,
             "kid": private_key_id,
             "scopes": scopes,
-            "logging": {"enabled": True},
+            "logging": {"enabled": False},
         }
+        
+        # Export current terraform state to JSON
+        state_file = export_terraform_state(directory)
 
         # Initialize the OktaTFImport for the directory
         okta = OktaTFImport(
