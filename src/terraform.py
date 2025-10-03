@@ -29,7 +29,7 @@ CONSOLIDATED_FILE = "_consolidated.tf"
 
 def log_info(message):
     """Print an info message"""
-    print(f"[INFO]ddd {message}", file=sys.stderr)
+    print(f"[INFO] {message}", file=sys.stderr)
 
 def log_error(message):
     """Print an error message"""
