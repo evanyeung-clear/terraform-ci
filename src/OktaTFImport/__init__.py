@@ -4,8 +4,8 @@ from pathlib import Path
 from okta.client import Client as OktaClient
 from ._utils import terraform_import_block
 from ._users import _get_all_users, _existing_users
-# from ._groups import _get_all_groups, _existing_groups
-# from ._applications import _get_all_apps, _existing_apps
+from ._groups import _get_all_groups, _existing_groups
+from ._applications import _get_all_apps, _existing_apps
 
 class OktaTFImport:
     _instance = None  # Class variable to store the single instance
@@ -51,7 +51,7 @@ class OktaTFImport:
         skip = []
 
         try:
-            resources = await getter_fn(self)
+            resources = await getter_fn(client=self.client)
 
             # filter the state for existing resources
             existing_ids = list(filter(existing_fn, self.state.get('values', {}).get('root_module', {}).get('resources', [])))
@@ -70,7 +70,7 @@ class OktaTFImport:
                     f.write(terraform_import_block(r['type'], r['name'], r['id']))
                     written += 1
                 
-            print(f"Written {written} user import blocks to {output_file} (skipped {len(skip)} already in state)")
+            print(f"Written {written} {name} import blocks to {output_file} (skipped {len(skip)} already in state)")
         except Exception as e:
             print(f"Error processing users: {str(e)}", file=sys.stderr)
 
@@ -87,9 +87,7 @@ class OktaTFImport:
         await self._register("users", _get_all_users, _existing_users)
     
     async def process_groups(self):
-        pass
         await self._register("groups", _get_all_groups, _existing_groups)
 
     async def process_apps(self):
-        pass
         await self._register("apps", _get_all_apps, _existing_apps)

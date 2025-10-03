@@ -3,11 +3,11 @@
 from typing import List
 from ._utils import sanitize_resource_name
 
-async def _get_all_users(self) -> List:
+async def _get_all_users(client) -> List:
     print("Fetching all users from Okta...")
     users = []
     try:
-        user_list, resp, err = await self.client.list_users()
+        user_list, resp, err = await client.list_users()
         if err:
             raise Exception(f"Error fetching users: {err}")
         users.extend(user_list)

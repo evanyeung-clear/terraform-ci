@@ -160,13 +160,11 @@ async def main():
             print(f"{'='*60}")
 
             if resource_type == 'groups':
-                # await okta.process_groups()
-                pass
+                await okta.process_groups()
             elif resource_type == 'users':
                 await okta.process_users()
             elif resource_type == 'apps':
-                # await okta.process_applications()
-                pass
+                await okta.process_apps()
 
         print(f"\n{'='*60}")
         print("PROCESSING COMPLETE")
