@@ -57,6 +57,12 @@ async def _get_all_apps(client) -> List:
                 "name": sanitize_resource_name(app.label)
             })
 
+            ids.append({
+                "type": "okta_app_group_assignments",
+                "id": app.id,
+                "name": sanitize_resource_name(app.label)
+            })
+
         return ids
     except Exception as e:  # noqa: BLE001
         raise Exception(f"Failed to retrieve applications: {str(e)}") from e
