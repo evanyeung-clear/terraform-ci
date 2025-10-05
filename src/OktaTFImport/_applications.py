@@ -4,6 +4,12 @@ from typing import List
 from ._utils import sanitize_resource_name
 
 
+skip_builtin_apps = [
+    "okta_enduser", # Okta Dashboard
+    "okta_browser_plugin",
+    "saasure" # Okta Admin Console
+]
+
 def _map_app_type(sign_on_mode: str):
     """Map Okta application sign-on mode to Terraform resource type."""
 
@@ -49,6 +55,9 @@ async def _get_all_apps(client) -> List:
             app_type = _map_app_type(app.sign_on_mode)
             if app_type == 'unknown':
                 print(f"Warning: Skipping application '{app.label}' with unknown sign-on mode: {app.sign_on_mode}")
+                continue
+
+            if app.name in skip_builtin_apps:
                 continue
 
             ids.append({
