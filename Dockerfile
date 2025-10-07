@@ -1,4 +1,4 @@
-FROM ghcr.io/astral-sh/uv:python3.13-alpine
+FROM python:3.13-slim
 
 # Install Terraform
 ARG TERRAFORM_VERSION=1.8.3
@@ -9,11 +9,7 @@ RUN apk add --no-cache curl unzip \
     && rm terraform.zip \
     && apk del curl unzip
 
-# Copy the project into the image
-COPY /src /src
+# Copy the Terraform wrapper into the image
+COPY /src/terraform.py .
 
-# Sync the project into a new environment, asserting the lockfile is up to date
-WORKDIR /src
-RUN uv sync --locked
-
-ENTRYPOINT [ "uv", "run", "--script", "/src/terraform.py" ]
+ENTRYPOINT [ "python", "terraform.py" ]
