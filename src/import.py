@@ -50,20 +50,6 @@ def parse_arguments() -> tuple[str, list[str]]:
         print("  import.py production --type=groups")
         print("  import.py preview --type=groups,users")
 
-        # Show available directories
-        try:
-            script_dir = Path(__file__).parent  # src directory
-            base_dir = script_dir.parent  # base directory
-            available_dirs = []
-            for dir_path in base_dir.iterdir():
-                if dir_path.is_dir() and (dir_path / "terraform.plan.enc.tfvars.json").exists():
-                    available_dirs.append(dir_path.name)
-
-            if available_dirs:
-                print(f"\nAvailable directories: {', '.join(available_dirs)}")
-        except Exception:
-            pass  # Don't fail if we can't list directories
-
         sys.exit(1)
 
     directory = sys.argv[1]
@@ -105,7 +91,7 @@ def export_terraform_state(directory: str) -> str | None:
     """Export current terraform state to JSON."""
     try:
         result = subprocess.run(
-            ["docker", "compose", "run", "terraform", "show", "--json"],
+            ["docker", "compose", "run", "--rm", "terraform", "show", "--json"],
             cwd=directory,
             capture_output=True,
             text=True,
@@ -187,6 +173,16 @@ async def main():
 
         # Close the client
         await okta.close()
+
+        # Generate terraform config
+        generated_file = "generated.tf"
+        subprocess.run(
+            ["docker", "compose", "run", "--rm", "terraform", "plan", f"-generate-config-out={generated_file}"],
+            cwd=directory,
+            capture_output=True,
+            text=True,
+            check=False
+        )
 
     except KeyboardInterrupt:
         print("\nOperation cancelled by user.")

@@ -25,9 +25,7 @@ class OktaTFImport:
             self.state = {}
             self.directory = directory
 
-            # TODO: fix
-            self.base_dir = Path(__file__).parent.parent  # repo root
-            self.output_dir = self.base_dir / self.directory
+            self.output_dir = Path(self.directory)
             self._setup_client(config)
             self._read_state(state_file)
 
