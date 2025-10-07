@@ -10,5 +10,5 @@ services:
       - "~/.aws/credentials:/root/.aws/credentials"
     environment:
       - TF_WORKSPACE=preview
-      - TF_CLOUD_ORGANIZATION=${TF_CLOUD_ORGANIZATION}
-      - TF_TOKEN_APP_TERRAFORM_IO=${TF_TOKEN_APP_TERRAFORM_IO}
+      - TF_CLOUD_ORGANIZATION
+      - TF_TOKEN_APP_TERRAFORM_IO

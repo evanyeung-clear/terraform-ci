@@ -6,7 +6,7 @@ This script uses the Okta Python SDK to generate Terraform import blocks for Okt
 It reads OAuth2 credentials from a terraform.plan.enc.tfvars.json file in a specified directory.
 
 Usage:
-    python import.py <directory_name> [--type=<types>]
+    import.py <directory_name> [--type=<types>]
 
     Where <directory_name> is the directory containing terraform.plan.enc.tfvars.json
     (e.g., 'preview' or 'production')
@@ -19,9 +19,9 @@ Usage:
     If no --type is specified, all resource types will be processed.
 
 Examples:
-    python import.py preview
-    python import.py production --type=groups
-    python import.py preview --type=groups,users
+    import.py preview
+    import.py production --type=groups
+    import.py preview --type=groups,users
 
 The script will look for terraform.plan.enc.tfvars.json in the specified directory and use
 SOPS to decrypt the Okta OAuth2 credentials.
@@ -32,14 +32,12 @@ import json
 import asyncio
 import subprocess
 from pathlib import Path
-from typing import List
-# from OktaImport.api import OktaAPIManager
-# from OktaImport import groups, users, applications
+from OktaTFImport import OktaTFImport
 
 def parse_arguments() -> tuple[str, list[str]]:
     """Parse command line arguments."""
     if len(sys.argv) < 2:
-        print("Usage: python import.py <directory_name> [--type=<types>]")
+        print("Usage: import.py <directory_name> [--type=<types>]")
         print("\nWhere <directory_name> is the directory containing terraform.plan.enc.tfvars.json")
         print("(relative to the base project directory, e.g., 'preview' or 'production')")
         print("and <types> is a comma-separated list of Okta resources to read")
@@ -48,23 +46,9 @@ def parse_arguments() -> tuple[str, list[str]]:
         print("  users     - Okta users")
         print("  apps      - Okta applications")
         print("\nExamples:")
-        print("  python import.py preview")
-        print("  python import.py production --type=groups")
-        print("  python import.py preview --type=groups,users")
-
-        # Show available directories
-        try:
-            script_dir = Path(__file__).parent  # src directory
-            base_dir = script_dir.parent  # base directory
-            available_dirs = []
-            for dir_path in base_dir.iterdir():
-                if dir_path.is_dir() and (dir_path / "terraform.plan.enc.tfvars.json").exists():
-                    available_dirs.append(dir_path.name)
-
-            if available_dirs:
-                print(f"\nAvailable directories: {', '.join(available_dirs)}")
-        except Exception:
-            pass  # Don't fail if we can't list directories
+        print("  import.py preview")
+        print("  import.py production --type=groups")
+        print("  import.py preview --type=groups,users")
 
         sys.exit(1)
 
@@ -92,21 +76,33 @@ def parse_arguments() -> tuple[str, list[str]]:
 
     return directory, resource_types
 
-def export_terraform_state(directory: str) -> None:
+def read_terraform_config(directory: str) -> dict:
+    """Read the terraform plan configuration from the specified directory."""
+    try:
+        config_file = Path(directory) / "terraform.tfvars.json"
+        with open(config_file, 'r') as f:
+            print(f"Reading config from {config_file}")
+            return json.load(f)
+    except FileNotFoundError:
+        print(f"Error: terraform.tfvars.json not found in {directory}")
+        sys.exit(1)
+
+def export_terraform_state(directory: str) -> str | None:
     """Export current terraform state to JSON."""
     try:
         result = subprocess.run(
-            ["docker", "compose", "run", "terraform", "show", "--json"],
+            ["docker", "compose", "run", "--rm", "terraform", "show", "--json"],
             cwd=directory,
             capture_output=True,
             text=True,
             check=True
         )
 
-        output_file = Path(directory) / "terraform_state.json"
+        output_file = Path(directory) / "terraform.tfstate"
         with open(output_file, 'w') as f:
             f.write(result.stdout)
-        print(f"Terraform state exported to {output_file}")
+            print(f"Terraform state exported to {output_file}")
+        return output_file
     except subprocess.CalledProcessError as e:
         print(f"Error exporting terraform state: {e.stderr}", file=sys.stderr)
         return None
@@ -127,33 +123,66 @@ async def main():
         print(f"Output directory: {directory}")
         print()
 
+        # Read Okta credentials from terraform.tfvars.json
+        tfvars = read_terraform_config(directory)
+        org_name = tfvars['okta_org_name']
+        base_url = tfvars['okta_base_url']
+        client_id = tfvars['okta_api_client_id']
+        private_key_id = tfvars['okta_api_private_key_id']
+        private_key = tfvars['okta_api_private_key']
+        scopes = tfvars['okta_api_scopes']
+
+        config = {
+            "orgUrl": f"https://{org_name}.{base_url}",
+            "authorizationMode": "PrivateKey",
+            "clientId": client_id,
+            "privateKey": private_key,
+            "kid": private_key_id,
+            "scopes": scopes,
+            "logging": {"enabled": False},
+        }
+        
         # Export current terraform state to JSON
-        export_terraform_state(directory)
+        state_file = export_terraform_state(directory)
 
-    #     # Initialize (or retrieve) the singleton Okta API manager for the directory
-    #     okta = OktaAPIManager(directory)
+        # Initialize the OktaTFImport for the directory
+        okta = OktaTFImport(
+            directory=directory,
+            config=config,
+            state_file=state_file
+        )
 
-    #     # Process each resource type (skipping ones already in state)
-    #     for resource_type in resource_types:
-    #         print(f"\n{'='*60}")
-    #         print(f"Processing {resource_type.upper()}")
-    #         print(f"{'='*60}")
+        # Process each resource type (skipping ones already in state)
+        for resource_type in resource_types:
+            print(f"\n{'='*60}")
+            print(f"Processing {resource_type.upper()}")
+            print(f"{'='*60}")
 
-    #         if resource_type == 'groups':
-    #             await groups.process_groups(okta, existing_ids=okta.group_ids)
-    #         elif resource_type == 'users':
-    #             await users.process_users(okta, existing_ids=okta.user_ids)
-    #         elif resource_type == 'apps':
-    #             await applications.process_applications(okta, existing_ids=okta.app_ids)
+            if resource_type == 'groups':
+                await okta.process_groups()
+            elif resource_type == 'users':
+                await okta.process_users()
+            elif resource_type == 'apps':
+                await okta.process_apps()
 
-    #     print(f"\n{'='*60}")
-    #     print("PROCESSING COMPLETE")
-    #     print(f"{'='*60}")
-    #     print(f"Terraform import files have been written to the '{directory}' directory.")
-    #     print("You can now run 'terraform plan -generate-config-out' to see what resources will be imported.")
+        print(f"\n{'='*60}")
+        print("PROCESSING COMPLETE")
+        print(f"{'='*60}")
+        print(f"Terraform import files have been written to the '{directory}' directory.")
+        print("You can now run 'terraform plan -generate-config-out' to see what resources will be imported.")
 
-    #     # Close the client
-    #     await okta.close()
+        # Close the client
+        await okta.close()
+
+        # Generate terraform config
+        generated_file = "generated.tf"
+        subprocess.run(
+            ["docker", "compose", "run", "--rm", "terraform", "plan", f"-generate-config-out={generated_file}"],
+            cwd=directory,
+            capture_output=True,
+            text=True,
+            check=False
+        )
 
     except KeyboardInterrupt:
         print("\nOperation cancelled by user.")
