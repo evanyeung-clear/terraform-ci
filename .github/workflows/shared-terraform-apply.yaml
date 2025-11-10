@@ -250,12 +250,25 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
-            fetch('https://app.terraform.io/api/v2/workspaces/${{ inputs.directory }}', {
+            # 1. Download main state
+            const response = await fetch('https://app.terraform.io/api/v2/workspaces/${{ inputs.directory }}', {
               headers: {
                 Authorization: `Bearer ${{ secrets.TF_TOKEN_APP_TERRAFORM_IO }}`
                 'Content-Type': 'application/vnd.api+json'
               }
             });
+
+            const data = await response.json();
+
+            # download state file
+            const stateUrl = data.data.attributes['hosted-state-download-url'];
+            const stateResponse = await fetch(stateUrl);
+            const state = await stateResponse.json();
+
+            # write state file
+            fs.writeFileSync('terraform.tfstate', state);
+
+            # 2. Upload frozen state to speculative
 
       - name: Initialize Terraform
         env:
