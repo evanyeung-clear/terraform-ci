@@ -34,7 +34,7 @@ jobs:
     steps:
       - name: Checkout pull request
         uses: actions/checkout@v4
-        with: 
+        with:
           fetch-depth: 0
           ref: ${{ github.head.ref }}
 
@@ -52,15 +52,18 @@ jobs:
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
-      
+
       - name: Bake with Compose
         uses: docker/bake-action@v6
-        with: 
+        with:
           source: "{{defaultContext}}:${{ inputs.directory }}"
           set: |
             *.cache-from=type=gha
             *.cache-to=type=gha,mode=max
             *.output=type=docker
+
+      # if lock is active, use speculative state
+      # SPEC: -spec
 
       - name: Initialize Terraform
         env:
@@ -72,10 +75,10 @@ jobs:
           docker compose run --rm terraform validate -no-color
 
       - name: Get Changed Terraform Targets
-        uses: ./.github/shared-actions/tf-targets
         id: targets
-        with:
-          working_directory: ${{ inputs.directory }}
+        run: |
+          docker compose run --rm terraform plan -refresh=false -json | jq -r '.change.resource.addr|select(.!=null)|"-target="+.' > targets.txt
+          echo "targets=$(cat targets.txt)" >> $GITHUB_OUTPUT
 
       - name: Run Terraform Plan
         id: plan
@@ -107,7 +110,7 @@ jobs:
           echo "Terraform command: $cmd"
 
           start=$(date +%s)
-          
+
           # handle errors and capture output
           set +e
           docker compose run $cmd 2>&1 | tee tf.console.txt
@@ -145,7 +148,7 @@ jobs:
             -e 's/^  # \(.* be updated\|.* be replaced\)/! \1/' \
             -e 's/^  # \(.* be read\)/~ \1/' \
             -e 's/^  # \(.*\)/# \1/' > tf.diff.txt || true
-          
+
           # Grab the summary lines for the expand text
           awk '/^(Error:|Plan:|Apply complete!|No changes.|Success)/' tf.console.txt > tf.summary.txt
       - name: Comment Terraform Plan

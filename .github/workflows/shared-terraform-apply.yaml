@@ -1,5 +1,3 @@
-
-
 on:
   workflow_call:
     inputs:
@@ -238,15 +236,26 @@ jobs:
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
-      
+
       - name: Bake with Compose
         uses: docker/bake-action@v6
-        with: 
+        with:
           source: "{{defaultContext}}:${{ inputs.directory }}"
           set: |
             *.cache-from=type=gha
             *.cache-to=type=gha,mode=max
             *.output=type=docker
+
+      - name: Freeze Terraform state
+        uses: actions/github-script@v7
+        with:
+          script: |
+            fetch('https://app.terraform.io/api/v2/workspaces/${{ inputs.directory }}', {
+              headers: {
+                Authorization: `Bearer ${{ secrets.TF_TOKEN_APP_TERRAFORM_IO }}`
+                'Content-Type': 'application/vnd.api+json'
+              }
+            });
 
       - name: Initialize Terraform
         env:
@@ -317,7 +326,7 @@ jobs:
           git push --force origin "refs/tags/$TAG:refs/tags/$TAG"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      
+
       - name: Label PR deployment lock
         uses: actions/github-script@v7
         with:
@@ -362,7 +371,7 @@ jobs:
             -e 's/^  # \(.* be updated\|.* be replaced\)/! \1/' \
             -e 's/^  # \(.* be read\)/~ \1/' \
             -e 's/^  # \(.*\)/# \1/' > tf.diff.txt || true
-          
+
           # Grab the summary lines for the expand text
           awk '/^(Error:|Apply complete!|No changes.|Success)/' tf.console.txt > tf.summary.txt
 
@@ -454,7 +463,7 @@ jobs:
         working-directory: ${{ inputs.directory }}
 
     steps:
-      - name: Checkout main branch 
+      - name: Checkout main branch
         uses: actions/checkout@v4
 
       - name: Decrypt Terraform variables
@@ -471,10 +480,10 @@ jobs:
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
-      
+
       - name: Bake with Compose
         uses: docker/bake-action@v6
-        with: 
+        with:
           source: "{{defaultContext}}:${{ inputs.directory }}"
           set: |
             *.cache-from=type=gha
@@ -541,7 +550,7 @@ jobs:
           git push --force origin "refs/tags/$TAG:refs/tags/$TAG"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      
+
       # - name: Remove PR deployment lock label
       #   if: always() && steps.apply.outcome == 'success'
       #   uses: actions/github-script@v7
@@ -565,7 +574,7 @@ jobs:
           style: flat-square
           filename: latest-${{ inputs.directory }}-branch.svg
           github_token: ${{ secrets.GITHUB_TOKEN }}
-      
+
       - name: Release deployment lock
         if: always() && steps.apply.outcome == 'success'
         uses: forevanyeung/lock@e43a0b2920fca2eb45f02bde126d32e09949d419
