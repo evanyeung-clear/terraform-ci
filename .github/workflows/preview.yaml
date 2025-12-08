@@ -4,6 +4,7 @@ on:
   pull_request:
     branches:
       - main
+      - freeze-state
     paths:
       - preview/**
     types:
@@ -22,7 +23,7 @@ jobs:
 
   plan:
     if: github.event_name == 'pull_request' && github.event.action != 'closed'
-    uses: ./.github/workflows/shared-terraform-plan.yaml
+    uses: ./.github/workflows/shared-terraform-plan.yaml@freeze-state
     with:
       directory: preview
       vars_file: terraform.enc.tfvars.json
