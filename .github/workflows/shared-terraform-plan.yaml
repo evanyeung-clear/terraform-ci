@@ -100,13 +100,13 @@ jobs:
               console.log('Lock is held by this branch, continuing.');
               core.setOutput("locked", "false");
             } else {
-              console.log(`Lock is held by branch ${lockedBranch}, cannot proceed.`);
+              console.log(`Lock is held by branch ${lockedBranch}, using speculative state.`);
               core.setOutput("locked", "true");
             }
 
       - name: Initialize Terraform
         env:
-          SPEC_PLAN: ${{ steps.lock-check.outputs.locked == 'true' }}
+          SPEC_PLAN: ${{ steps.lock-check.outputs.locked == 'true' && 'true' || '' }}
           TF_TOKEN_APP_TERRAFORM_IO: ${{ secrets.TF_TOKEN_APP_TERRAFORM_IO }}
           TF_CLOUD_ORGANIZATION: ${{ secrets.TF_CLOUD_ORGANIZATION }}
         run: |
