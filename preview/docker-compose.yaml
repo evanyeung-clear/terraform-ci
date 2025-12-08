@@ -12,3 +12,5 @@ services:
       - TF_WORKSPACE=${TF_WORKSPACE:-preview}${SPEC_PLAN:+-speculative}
       - TF_CLOUD_ORGANIZATION
       - TF_TOKEN_APP_TERRAFORM_IO
+      - TF_LOG
+      - TF_LOG_PATH
