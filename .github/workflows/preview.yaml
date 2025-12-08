@@ -23,7 +23,7 @@ jobs:
 
   plan:
     if: github.event_name == 'pull_request' && github.event.action != 'closed'
-    uses: ./.github/workflows/shared-terraform-plan.yaml@freeze-state
+    uses: ./.github/workflows/shared-terraform-plan.yaml
     with:
       directory: preview
       vars_file: terraform.enc.tfvars.json
