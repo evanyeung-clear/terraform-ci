@@ -123,7 +123,7 @@ jobs:
       - name: Run Terraform Plan
         id: plan
         env:
-          SPEC_PLAN: ${{ steps.lock-check.outputs.locked == 'true' }}
+          SPEC_PLAN: ${{ steps.lock-check.outputs.locked == 'true' && 'true' || '' }}
           TF_TOKEN_APP_TERRAFORM_IO: ${{ secrets.TF_TOKEN_APP_TERRAFORM_IO }}
           TF_CLOUD_ORGANIZATION: ${{ secrets.TF_CLOUD_ORGANIZATION }}
         run: |
