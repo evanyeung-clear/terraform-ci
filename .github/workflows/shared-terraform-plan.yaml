@@ -63,10 +63,50 @@ jobs:
             *.output=type=docker
 
       # if lock is active, use speculative state
-      # SPEC: -spec
+      - name: Get PR and commit SHA
+        id: pr
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { data: pr } = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number
+            });
+
+            // core.setOutput("head_sha", pr.head.sha);
+            core.setOutput("branch", pr.head.ref);
+            // core.setOutput("mergeable_state", pr.mergeable_state);
+
+      - name: Check deployment lock
+        uses: forevanyeung/lock@e43a0b2920fca2eb45f02bde126d32e09949d419
+        id: lock
+        with:
+          mode: check
+          environment: ${{ inputs.directory }}
+
+      - name: Check if lock is for this branch
+        if: steps.lock.outputs.locked == 'true'
+        uses: actions/github-script@v7
+        id: lock-check
+        with:
+          script: |
+            const lockedBranch = `${{ steps.lock.outputs.branch }}`;
+            const currentBranch = `${{ steps.pr.outputs.branch }}`;
+            console.log(`Locked branch: ${lockedBranch}, Current branch: ${currentBranch}`);
+
+            // Check if the lock is held by this branch
+            if (lockedBranch === currentBranch) {
+              console.log('Lock is held by this branch, continuing.');
+              core.setOutput("locked", "false");
+            } else {
+              console.log(`Lock is held by branch ${lockedBranch}, cannot proceed.`);
+              core.setOutput("locked", "true");
+            }
 
       - name: Initialize Terraform
         env:
+          SPEC_PLAN: ${{ steps.lock-check.outputs.locked == 'true' }}
           TF_TOKEN_APP_TERRAFORM_IO: ${{ secrets.TF_TOKEN_APP_TERRAFORM_IO }}
           TF_CLOUD_ORGANIZATION: ${{ secrets.TF_CLOUD_ORGANIZATION }}
         run: |
@@ -83,6 +123,7 @@ jobs:
       - name: Run Terraform Plan
         id: plan
         env:
+          SPEC_PLAN: ${{ steps.lock-check.outputs.locked == 'true' }}
           TF_TOKEN_APP_TERRAFORM_IO: ${{ secrets.TF_TOKEN_APP_TERRAFORM_IO }}
           TF_CLOUD_ORGANIZATION: ${{ secrets.TF_CLOUD_ORGANIZATION }}
         run: |

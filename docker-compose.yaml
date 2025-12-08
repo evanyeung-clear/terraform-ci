@@ -6,5 +6,7 @@ services:
       - "./:/terraform"
       - "~/.aws/credentials:/root/.aws/credentials"
     environment:
+      # if SPEC_PLAN is set, append -speculative to workspace name
+      - TF_WORKSPACE=${TF_WORKSPACE:-workspace}${SPEC_PLAN:+-speculative}
       - TF_CLOUD_ORGANIZATION
       - TF_TOKEN_APP_TERRAFORM_IO
