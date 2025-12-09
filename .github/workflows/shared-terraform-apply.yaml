@@ -247,35 +247,12 @@ jobs:
             *.output=type=docker
 
       - name: Freeze Terraform state
-        uses: actions/github-script@v7
+        uses: ./.github/shared-actions/copy-tfstate
         with:
-          script: |
-            const fs = require('fs');
-
-            // 1. Download main state
-            const response = await fetch('https://app.terraform.io/api/v2/workspaces/${{ inputs.directory }}', {
-              headers: {
-                'Authorization': `Bearer ${{ secrets.TF_TOKEN_APP_TERRAFORM_IO }}`,
-                'Content-Type': 'application/vnd.api+json'
-              }
-            });
-
-            const data = await response.json();
-
-            // download state file
-            const stateUrl = data.data.attributes['hosted-state-download-url'];
-            const stateResponse = await fetch(stateUrl);
-            const state = await stateResponse.json();
-
-            // write state file to working directory
-            const path = require('path');
-            const stateFilePath = path.join('${{ inputs.directory }}', 'terraform.tfstate');
-            fs.writeFileSync(stateFilePath, JSON.stringify(state, null, 2));
-            console.log(`State file written to ${stateFilePath}`);
-
-            // TODO: 2. Upload frozen state to speculative workspace
-            // Implementation needed: upload the frozen state to a speculative workspace
-            // for safe preview before actual apply
+          from_workspace: ${{ inputs.directory }}
+          to_workspace: ${{ inputs.directory }}_speculative
+          TF_CLOUD_ORGANIZATION: ${{ secrets.TF_CLOUD_ORGANIZATION }}
+          TF_TOKEN_APP_TERRAFORM_IO: ${{ secrets.TF_TOKEN_APP_TERRAFORM_IO }}
 
       - name: Initialize Terraform
         env:
