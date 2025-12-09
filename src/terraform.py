@@ -127,8 +127,16 @@ def consolidate_tf_files():
     log_info(f"Consolidated {file_count} files into {CONSOLIDATED_FILE}")
     return file_count
 
+def is_allowed_terraform_cmd(cmd):
+    """List of allowed terraform commands"""
+    return cmd in ["init", "fmt", "validate", "plan", "apply"] 
+
 def run_terraform(args):
     """Run terraform with the provided arguments"""
+    if not is_allowed_terraform_cmd(args[0]):
+        log_error(f"Command {args[0]} is not allowed")
+        return 1
+
     terraform_bin = find_terraform_executable()
     log_info(f"Running terraform with arguments: {' '.join(args)}")
     log_info(f"Using terraform executable: {terraform_bin}")
