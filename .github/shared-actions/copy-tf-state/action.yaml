@@ -1,0 +1,232 @@
+name: Copy Terraform State
+description: "Copies the Terraform state from one workspace to another"
+
+inputs:
+  source_workspace:
+    description: "Source Terraform Cloud workspace"
+    required: true
+    type: string
+  destination_workspace:
+    description: "Destination Terraform Cloud workspace"
+    required: true
+    type: string
+  TF_CLOUD_ORGANIZATION:
+    description: "Terraform Cloud organization name"
+    required: true
+  TF_TOKEN_APP_TERRAFORM_IO:
+    description: "Terraform Cloud API token"
+    required: true
+
+runs:
+  using: composite
+
+  steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Download source state
+      id: source
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const workspace = '${{ inputs.source_workspace }}';
+          
+          // COPY THIS AND BELOW
+          const fs = require('fs');
+          const path = require('path');
+
+          const headers = {
+            'Authorization': `Bearer ${{ secrets.TF_TOKEN_APP_TERRAFORM_IO }}`,
+            'Content-Type': 'application/vnd.api+json'
+          };
+
+          // 1. Download main state
+          const response = await fetch(`https://app.terraform.io/api/v2/organizations/${{ secrets.TF_CLOUD_ORGANIZATION }}/workspaces/${workspace}`, {
+            headers: headers
+          });
+          
+          if (!response.ok) {
+            throw new Error(`Failed to fetch source workspace: ${response.statusText}`);
+          }
+
+          const data = await response.json();
+          const workspaceId = data.data.id;
+          core.setOutput("workspace_id", workspaceId);
+
+          // download state file
+          const stateId = data.data.relationships.current-state-version.data['id'];
+          
+          if (!stateId) {
+            throw new Error(`No state version found for source workspace`);
+          }
+
+          const stateUrl = `https://app.terraform.io/api/v2/state-versions/${stateId}/hosted_state`;
+          const stateResponse = await fetch(stateUrl, { headers: headers });
+          const state = await stateResponse.json();
+
+          // write state file
+          const stateFilePath = path.join('${{ inputs.from_workspace }}', 'terraform.tfstate');
+          fs.writeFileSync(stateFilePath, JSON.stringify(state, null, 2));
+          console.log(`State file written to ${stateFilePath}`);
+
+          // TODO: make this stream
+          // extract serial from state file
+          const serial = state.serial || 0;
+          console.log(`State serial: ${serial}`);
+          core.setOutput("serial", serial);
+
+          // calc md5 hash
+          const crypto = require('crypto');
+          const stateContent = fs.readFileSync(stateFilePath);
+          const md5Hash = crypto.createHash('md5').update(stateContent).digest('hex');
+          console.log(`State MD5 hash: ${md5Hash}`);
+          core.setOutput("md5_hash", md5Hash);
+
+    - name: Download destination state
+      id: destination
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const workspace = '${{ inputs.destination_workspace }}';
+
+          // COPY THIS AND BELOW
+          const fs = require('fs');
+          const path = require('path');
+
+          const headers = {
+            'Authorization': `Bearer ${{ secrets.TF_TOKEN_APP_TERRAFORM_IO }}`,
+            'Content-Type': 'application/vnd.api+json'
+          };
+
+          // 1. Download main state
+          const response = await fetch(`https://app.terraform.io/api/v2/organizations/${{ secrets.TF_CLOUD_ORGANIZATION }}/workspaces/${workspace}`, {
+            headers: headers
+          });
+          
+          if (!response.ok) {
+            throw new Error(`Failed to fetch source workspace: ${response.statusText}`);
+          }
+
+          const data = await response.json();
+          const workspaceId = data.data.id;
+          core.setOutput("workspace_id", workspaceId);
+
+          // download state file
+          const stateId = data.data.relationships.current-state-version.data['id'];
+          
+          if (!stateId) {
+            throw new Error(`No state version found for source workspace`);
+          }
+
+          const stateUrl = `https://app.terraform.io/api/v2/state-versions/${stateId}/hosted_state`;
+          const stateResponse = await fetch(stateUrl, { headers: headers });
+          const state = await stateResponse.json();
+
+          // write state file
+          const stateFilePath = path.join('${{ inputs.from_workspace }}', 'terraform.tfstate');
+          fs.writeFileSync(stateFilePath, JSON.stringify(state, null, 2));
+          console.log(`State file written to ${stateFilePath}`);
+
+          // TODO: make this stream
+          // extract serial from state file
+          const serial = state.serial || 0;
+          console.log(`State serial: ${serial}`);
+          core.setOutput("serial", serial);
+
+          // calc md5 hash
+          const crypto = require('crypto');
+          const stateContent = fs.readFileSync(stateFilePath);
+          const md5Hash = crypto.createHash('md5').update(stateContent).digest('hex');
+          console.log(`State MD5 hash: ${md5Hash}`);
+          core.setOutput("md5_hash", md5Hash);
+
+    - name: Download source state
+      uses: actions/github-script@v7
+      need: source, destination
+      with:
+        script: |
+          // Check source state serial is greater than destination state serial
+          if (${{ steps.source.outputs.serial }} < ${{ steps.destination.outputs.serial }}) {
+            throw new Error('Destination state is newer than source state, cannot overwrite');
+          }
+
+          // If serials are equal, check md5 hashes are equal
+          if (${{ steps.source.outputs.serial }} == ${{ steps.destination.outputs.serial }}) {
+            if (${{ steps.source.outputs.md5_hash }} != ${{ steps.destination.outputs.md5_hash }}) {
+              throw new Error('Source and destination states are the same version, but have different MD5 hashes, cannot overwrite');
+            }
+          }
+
+          // Either source is newer
+          // or identical, if identical do not upload new state
+
+    - name: Upload destination state
+      uses: actions/github-script@v7
+      with:
+        script: |
+          // Upload a speculative state for plan during locked applies
+          const headers = {
+            'Authorization': `Bearer ${{ secrets.TF_TOKEN_APP_TERRAFORM_IO }}`,
+            'Content-Type': 'application/vnd.api+json'
+          };
+
+          // lock workspace
+          const lockResponse = await fetch(`https://app.terraform.io/api/v2/workspaces/${{ steps.destination.outputs.workspace_id }}/actions/lock`, {
+            method: 'POST',
+            headers: headers
+          });
+          
+          // create a new state version
+          const response = await fetch(`https://app.terraform.io/api/v2/workspaces/${{ steps.destination.outputs.workspace_id }}/state-versions`, {
+            method: 'POST',
+            headers: headers,
+            body: JSON.stringify({
+              data: {
+                type: 'state-versions',
+                attributes: {
+                  serial: ${{ steps.source.outputs.serial }},
+                  md5: ${{ steps.source.outputs.md5_hash }}
+                }
+              }
+            })
+          });
+
+          if (!response.ok) {
+            throw new Error(`Failed to create a state version: ${response.statusText}`);
+          }
+
+          const data = await response.json();
+          console.log(`State version created: ${data.data.id}`);
+
+          // 3. Upload state file to new state version
+          const uploadUrl = data.data.attributes.hosted-state-download-url;
+          const stateFile = fs.readFileSync('${{ inputs.source_workspace }}/terraform.tfstate');
+          const stateUploadResponse = await fetch(uploadUrl, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/octet-stream'
+            },
+            body: stateFile
+          });
+
+          if (!stateUploadResponse.ok) {
+            throw new Error(`Failed to upload state file: ${stateUploadResponse.statusText}`);
+          }
+
+          console.log('State file uploaded successfully');
+
+    - name: Upload destination state
+      if: always()
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const headers = {
+            'Authorization': `Bearer ${{ secrets.TF_TOKEN_APP_TERRAFORM_IO }}`,
+            'Content-Type': 'application/vnd.api+json'
+          };
+          
+          // unlock workspace
+          const unlockResponse = await fetch(`https://app.terraform.io/api/v2/workspaces/${{ steps.destination.outputs.workspace_id }}/actions/unlock`, {
+            method: 'POST',
+            headers: headers
+          });
