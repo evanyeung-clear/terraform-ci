@@ -276,6 +276,8 @@ jobs:
       - name: Run Terraform Apply
         id: apply
         env:
+          TF_LOG: DEBUG
+          TF_LOG_PATH: terraform-debug.log
           TF_TOKEN_APP_TERRAFORM_IO: ${{ secrets.TF_TOKEN_APP_TERRAFORM_IO }}
           TF_CLOUD_ORGANIZATION: ${{ secrets.TF_CLOUD_ORGANIZATION }}
         run: |
@@ -338,6 +340,14 @@ jobs:
 
           echo "duration=$((end - start))" >> $GITHUB_OUTPUT
           echo "cmd=$cmd" >> $GITHUB_OUTPUT
+
+          # Show debug log for provider authentication issues
+          if [ $status -ne 0 ] && [ -f terraform-debug.log ]; then
+            echo ""
+            echo "=== Terraform Debug Log (last 100 lines, filtered for Okta provider) ==="
+            grep -i "okta\|provider\|auth\|token\|private.*key\|client.*id" terraform-debug.log | tail -100 || echo "No debug log found"
+            echo ""
+          fi
 
           if [ $status -ne 0 ]; then
             echo "Terraform apply failed"
