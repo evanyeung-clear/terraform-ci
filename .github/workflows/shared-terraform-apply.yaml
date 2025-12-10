@@ -264,10 +264,10 @@ jobs:
           docker compose run --rm terraform validate -no-color
 
       - name: Get Changed Terraform Targets
-        uses: ./.github/shared-actions/tf-targets
         id: targets
-        with:
-          working_directory: ${{ inputs.directory }}
+        run: |
+          docker compose run --rm terraform plan -refresh=false -json | jq -r '.change.resource.addr|select(.!=null)|"-target="+.' > targets.txt
+          echo "targets=$(cat targets.txt)" >> $GITHUB_OUTPUT
 
       - name: Run Terraform Apply
         id: apply
@@ -275,6 +275,9 @@ jobs:
           TF_TOKEN_APP_TERRAFORM_IO: ${{ secrets.TF_TOKEN_APP_TERRAFORM_IO }}
           TF_CLOUD_ORGANIZATION: ${{ secrets.TF_CLOUD_ORGANIZATION }}
         run: |
+          set +e  # Disable immediate exit on error to handle errors gracefully
+          status=0
+
           # Build terraform apply command based on vars file and SOPS usage
           cmd="terraform apply -no-color -input=false -auto-approve"
 
@@ -299,19 +302,16 @@ jobs:
           echo "Terraform command: $cmd"
 
           start=$(date +%s)
-          # handle errors and capture output
-          set +e
-          docker compose run $cmd 2>&1 | tee tf.console.txt
+          docker compose run --rm $cmd 2>&1 | tee tf.console.txt
           status=${PIPESTATUS[0]}
-          set -e
           end=$(date +%s)
 
           echo "duration=$((end - start))" >> $GITHUB_OUTPUT
           echo "cmd=$cmd" >> $GITHUB_OUTPUT
 
           if [ $status -ne 0 ]; then
-            echo "Terraform apply failed."
-            exit 1
+            echo "Terraform apply failed"
+            exit $status
           fi
 
       - name: Tag commit on successful apply
@@ -503,6 +503,9 @@ jobs:
           TF_CLOUD_ORGANIZATION: ${{ secrets.TF_CLOUD_ORGANIZATION }}
           TF_WORKSPACE: ${{ inputs.directory }}
         run: |
+          set +e  # Disable immediate exit on error to handle errors gracefully
+          status=0
+
           # Build terraform apply command based on vars file and SOPS usage
           cmd="terraform apply -no-color -input=false -auto-approve"
 
@@ -522,19 +525,18 @@ jobs:
           echo "Terraform command: $cmd"
 
           start=$(date +%s)
-          # handle errors and capture output
-          set +e
-          docker compose run $cmd 2>&1 | tee tf.console.txt
+          # Run terraform apply and capture output
+          docker compose run --rm $cmd 2>&1 | tee tf.console.txt
           status=${PIPESTATUS[0]}
-          set -e
           end=$(date +%s)
 
+          # Always set output variables, even on failure
           echo "duration=$((end - start))" >> $GITHUB_OUTPUT
           echo "cmd=$cmd" >> $GITHUB_OUTPUT
 
           if [ $status -ne 0 ]; then
-            echo "Terraform apply failed."
-            exit 1
+            echo "Terraform apply failed with exit code $status"
+            exit $status
           fi
 
       - name: Tag commit on successful apply
