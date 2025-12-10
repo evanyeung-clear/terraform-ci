@@ -270,8 +270,8 @@ jobs:
           TF_TOKEN_APP_TERRAFORM_IO: ${{ secrets.TF_TOKEN_APP_TERRAFORM_IO }}
           TF_CLOUD_ORGANIZATION: ${{ secrets.TF_CLOUD_ORGANIZATION }}
         run: |
-          docker compose run --rm terraform plan -refresh=false -json | jq -r '.change.resource.addr|select(.!=null)|"-target="+.' | tr '\n' ' ' > targets.txt
-          echo "targets=$(cat targets.txt)" >> $GITHUB_OUTPUT
+          docker compose run --rm terraform plan -refresh=false -json | jq -rs '[.[] | .change.resource.addr | select(.!=null) | "-target=\(.)"] | join(" ")' > targets.txt
+          echo "targets=\"$(cat targets.txt)\"" >> $GITHUB_OUTPUT
 
       - name: Run Terraform Apply
         id: apply
