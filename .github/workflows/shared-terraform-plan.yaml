@@ -123,7 +123,7 @@ jobs:
         run: |
           docker compose run --rm terraform plan -refresh=false -json | jq -rs '[.[] | .change.resource.addr | select(.!=null) | "-target=\(.)"] | join(" ")' > targets.txt
           echo "$(cat targets.txt)"
-          echo "targets=$(cat targets.txt)" >> $GITHUB_OUTPUT
+          echo "targets=\"$(cat targets.txt)\"" >> $GITHUB_OUTPUT
 
       - name: Run Terraform Plan
         id: plan
