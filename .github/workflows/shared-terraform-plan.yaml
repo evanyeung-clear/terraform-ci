@@ -116,6 +116,10 @@ jobs:
 
       - name: Get Changed Terraform Targets
         id: targets
+        env:
+          SPEC_PLAN: ${{ steps.lock-check.outputs.locked == 'true' && 'true' || '' }}
+          TF_TOKEN_APP_TERRAFORM_IO: ${{ secrets.TF_TOKEN_APP_TERRAFORM_IO }}
+          TF_CLOUD_ORGANIZATION: ${{ secrets.TF_CLOUD_ORGANIZATION }}
         run: |
           docker compose run --rm terraform plan -refresh=false -json | jq -r '.change.resource.addr|select(.!=null)|"-target="+.' | tr '\n' ' ' > targets.txt
           echo "targets=$(cat targets.txt)" >> $GITHUB_OUTPUT
