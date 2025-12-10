@@ -266,7 +266,7 @@ jobs:
       - name: Get Changed Terraform Targets
         id: targets
         run: |
-          docker compose run --rm terraform plan -refresh=false -json | jq -r '.change.resource.addr|select(.!=null)|"-target="+.' > targets.txt
+          docker compose run --rm terraform plan -refresh=false -json | jq -r '.change.resource.addr|select(.!=null)|"-target="+.' | tr '\n' ' ' > targets.txt
           echo "targets=$(cat targets.txt)" >> $GITHUB_OUTPUT
 
       - name: Run Terraform Apply
