@@ -432,7 +432,7 @@ jobs:
           script: |
             const state = (`${{ job.status }}` === 'success') ? 'success' : 'failure';
             const runUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
-            const duration = ${{ steps.apply.outputs.duration }} || '0';
+            const duration = ${{ steps.apply.outputs.duration || 0 }};
 
             github.rest.repos.createCommitStatus({
               owner: context.repo.owner,
