@@ -11,3 +11,4 @@ resource "okta_user" "test2" {
   login      = "example2@example.com"
   email      = "example2@example.com"
 }
+
