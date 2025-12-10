@@ -8,6 +8,6 @@ resource "okta_user" "test1" {
 resource "okta_user" "test2" {
   first_name = "John"
   last_name  = "Smith"
-  login      = "example@example.com"
-  email      = "example@example.com"
+  login      = "example2@example.com"
+  email      = "example2@example.com"
 }
