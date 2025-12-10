@@ -247,7 +247,7 @@ jobs:
             *.output=type=docker
 
       - name: Freeze Terraform state
-        if: !always()
+        if: false
         uses: evanyeung-clear/terraform-ci/.github/shared-actions/copy-tfstate@freeze-state
         with:
           from_workspace: ${{ inputs.directory }}
