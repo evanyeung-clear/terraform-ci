@@ -248,7 +248,7 @@ jobs:
 
       - name: Freeze Terraform state
         if: false
-        uses: evanyeung-clear/terraform-ci/.github/shared-actions/copy-tfstate@freeze-state
+        uses: ./.github/shared-actions/copy-tf-state@freeze-state
         with:
           from_workspace: ${{ inputs.directory }}
           to_workspace: ${{ inputs.directory }}_speculative
