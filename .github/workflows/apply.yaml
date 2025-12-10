@@ -48,7 +48,7 @@ jobs:
   preview:
     needs: check
     if: needs.check.outputs.preview == 'true'
-    uses: ./.github/workflows/shared-terraform-apply.yaml
+    uses: evanyeung-clear/terraform-ci/.github/workflows/shared-terraform-apply.yaml@freeze-state
     with:
       directory: preview
       vars_file: terraform.enc.tfvars.json
