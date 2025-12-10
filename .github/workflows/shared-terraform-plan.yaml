@@ -138,17 +138,17 @@ jobs:
           cmd="terraform plan -no-color -input=false"
 
           # Add vars file if specified
-          if [[ -n "${{ inputs.vars_file }}" ]]; then
-            if [[ -n "${{ secrets.sops_age_key }}" && -n "${{ steps.decrypt.outputs.decrypted_file }}" ]]; then
-              # Use decrypted file if SOPS was used
-              cmd="$cmd -var-file=${{ steps.decrypt.outputs.decrypted_file }}"
-              echo "Using SOPS-decrypted vars file: ${{ steps.decrypt.outputs.decrypted_file }}"
-            else
-              # Use original vars file if no SOPS
-              cmd="$cmd -var-file=${{ inputs.vars_file }}"
-              echo "Using vars file: ${{ inputs.vars_file }}"
-            fi
-          fi
+          # if [[ -n "${{ inputs.vars_file }}" ]]; then
+          #   if [[ -n "${{ secrets.sops_age_key }}" && -n "${{ steps.decrypt.outputs.decrypted_file }}" ]]; then
+          #     # Use decrypted file if SOPS was used
+          #     cmd="$cmd -var-file=${{ steps.decrypt.outputs.decrypted_file }}"
+          #     echo "Using SOPS-decrypted vars file: ${{ steps.decrypt.outputs.decrypted_file }}"
+          #   else
+          #     # Use original vars file if no SOPS
+          #     cmd="$cmd -var-file=${{ inputs.vars_file }}"
+          #     echo "Using vars file: ${{ inputs.vars_file }}"
+          #   fi
+          # fi
 
           # Only target resources that are modified in code
           targets=${{ steps.targets.outputs.targets }}

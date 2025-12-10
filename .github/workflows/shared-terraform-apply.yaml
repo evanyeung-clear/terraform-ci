@@ -305,6 +305,23 @@ jobs:
 
           echo "Terraform command: $cmd"
 
+          # === BEGIN DIAGNOSTICS ===
+          echo ""
+          echo "=== Checking terraform.tfvars.json on host ==="
+          ls -la terraform.tfvars.json || echo "File not found!"
+          echo ""
+          echo "=== File structure (keys only) ==="
+          jq 'keys' terraform.tfvars.json || echo "Cannot read file!"
+          echo ""
+          echo "=== Checking okta_api_client_id (first 20 chars) ==="
+          jq -r '.okta_api_client_id // "NOT_FOUND"' terraform.tfvars.json | head -c 20
+          echo ""
+          echo ""
+          echo "=== Checking file inside container ==="
+          docker compose run --rm terraform sh -c "ls -la /terraform/terraform.tfvars.json && jq 'keys' /terraform/terraform.tfvars.json" || echo "File not accessible in container!"
+          echo ""
+          # === END DIAGNOSTICS ===
+
           start=$(date +%s)
           docker compose run --rm $cmd 2>&1 | tee tf.console.txt
           status=${PIPESTATUS[0]}
