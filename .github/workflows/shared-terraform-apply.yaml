@@ -313,12 +313,21 @@ jobs:
           echo "=== File structure (keys only) ==="
           jq 'keys' terraform.tfvars.json || echo "Cannot read file!"
           echo ""
-          echo "=== Checking okta_api_client_id (first 20 chars) ==="
-          jq -r '.okta_api_client_id // "NOT_FOUND"' terraform.tfvars.json | head -c 20
-          echo ""
-          echo ""
-          echo "=== Checking file inside container ==="
-          docker compose run --rm terraform sh -c "ls -la /terraform/terraform.tfvars.json && jq 'keys' /terraform/terraform.tfvars.json" || echo "File not accessible in container!"
+          echo "=== Checking variable formats ==="
+          echo -n "okta_api_client_id length: "
+          jq -r '.okta_api_client_id // "NOT_FOUND"' terraform.tfvars.json | wc -c
+          echo -n "okta_api_private_key_id length: "
+          jq -r '.okta_api_private_key_id // "NOT_FOUND"' terraform.tfvars.json | wc -c
+          echo -n "okta_api_private_key length: "
+          jq -r '.okta_api_private_key // "NOT_FOUND"' terraform.tfvars.json | wc -c
+          echo -n "okta_api_private_key line count: "
+          jq -r '.okta_api_private_key // "NOT_FOUND"' terraform.tfvars.json | wc -l
+          echo -n "okta_api_private_key starts with: "
+          jq -r '.okta_api_private_key // "NOT_FOUND"' terraform.tfvars.json | head -n 1
+          echo -n "okta_api_scopes type: "
+          jq -r '.okta_api_scopes | type' terraform.tfvars.json
+          echo -n "okta_api_scopes value: "
+          jq -c '.okta_api_scopes' terraform.tfvars.json
           echo ""
           # === END DIAGNOSTICS ===
 
