@@ -24,6 +24,7 @@ jobs:
     permissions:
       pull-requests: write
       contents: write
+      statuses: write
 
     outputs:
       head_sha: ${{ steps.pr.outputs.head_sha }}
