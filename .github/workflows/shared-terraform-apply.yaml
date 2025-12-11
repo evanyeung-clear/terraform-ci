@@ -50,7 +50,7 @@ jobs:
         with:
           script: |
             // semi-documented enums https://docs.github.com/en/graphql/reference/enums#mergestatestatus
-            if ("${{ steps.pr.outputs.mergeable_state }}" == 'BEHIND') {
+            if ("${{ steps.pr.outputs.mergeable_state }}".toUpperCase() == 'BEHIND') {
               core.setFailed('Branch is not up to date with base branch. Please rebase or merge the latest changes from the base branch.');
             } else {
               console.log('Branch is up to date with base branch.');
