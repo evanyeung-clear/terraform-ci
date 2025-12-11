@@ -43,7 +43,7 @@ jobs:
       github.event.pull_request.merged == true
     uses: ./.github/workflows/shared-merge-unlock.yaml
     with:
-      directory: production
+      directory: preview
       pr_number: ${{ github.event.number }}
       pr_merged: ${{ github.event.pull_request.merged }}
       source_branch: ${{ github.event.pull_request.head.ref }}
