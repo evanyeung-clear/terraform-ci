@@ -156,7 +156,7 @@ jobs:
           echo "cmd=$cmd" >> $GITHUB_OUTPUT
 
           if [ $status -ne 0 ]; then
-            echo "Terraform apply failed"
+            echo "Terraform plan failed"
             exit $status
           fi
 
