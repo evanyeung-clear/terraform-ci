@@ -1,5 +1,3 @@
-
-
 on:
   workflow_call:
     inputs:
@@ -238,15 +236,24 @@ jobs:
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
-      
+
       - name: Bake with Compose
         uses: docker/bake-action@v6
-        with: 
+        with:
           source: "{{defaultContext}}:${{ inputs.directory }}"
           set: |
             *.cache-from=type=gha
             *.cache-to=type=gha,mode=max
             *.output=type=docker
+
+      - name: Freeze Terraform state
+        if: false
+        uses: ./.github/shared-actions/copy-tf-state@freeze-state
+        with:
+          from_workspace: ${{ inputs.directory }}
+          to_workspace: ${{ inputs.directory }}_speculative
+          TF_CLOUD_ORGANIZATION: ${{ secrets.TF_CLOUD_ORGANIZATION }}
+          TF_TOKEN_APP_TERRAFORM_IO: ${{ secrets.TF_TOKEN_APP_TERRAFORM_IO }}
 
       - name: Initialize Terraform
         env:
@@ -258,32 +265,27 @@ jobs:
           docker compose run --rm terraform validate -no-color
 
       - name: Get Changed Terraform Targets
-        uses: ./.github/shared-actions/tf-targets
         id: targets
-        with:
-          working_directory: ${{ inputs.directory }}
-
-      - name: Run Terraform Apply
-        id: apply
         env:
           TF_TOKEN_APP_TERRAFORM_IO: ${{ secrets.TF_TOKEN_APP_TERRAFORM_IO }}
           TF_CLOUD_ORGANIZATION: ${{ secrets.TF_CLOUD_ORGANIZATION }}
         run: |
+          docker compose run --rm terraform plan -refresh=false -lock=false -json | jq -rs '[.[] | .change.resource.addr | select(.!=null) | "-target=\(.)"] | join(" ")' > targets.txt
+          echo "targets=\"$(cat targets.txt)\"" >> $GITHUB_OUTPUT
+
+      - name: Run Terraform Apply
+        id: apply
+        env:
+          TF_LOG: DEBUG
+          TF_LOG_PATH: terraform-debug.log
+          TF_TOKEN_APP_TERRAFORM_IO: ${{ secrets.TF_TOKEN_APP_TERRAFORM_IO }}
+          TF_CLOUD_ORGANIZATION: ${{ secrets.TF_CLOUD_ORGANIZATION }}
+        run: |
+          set +e  # Disable immediate exit on error to handle errors gracefully
+          status=0
+
           # Build terraform apply command based on vars file and SOPS usage
           cmd="terraform apply -no-color -input=false -auto-approve"
-
-          # Add vars file if specified
-          if [[ -n "${{ inputs.vars_file }}" ]]; then
-            if [[ -n "${{ secrets.sops_age_key }}" && -n "${{ steps.decrypt.outputs.decrypted_file }}" ]]; then
-              # Use decrypted file if SOPS was used
-              cmd="$cmd -var-file=${{ steps.decrypt.outputs.decrypted_file }}"
-              echo "Using SOPS-decrypted vars file: ${{ steps.decrypt.outputs.decrypted_file }}"
-            else
-              # Use original vars file if no SOPS
-              cmd="$cmd -var-file=${{ inputs.vars_file }}"
-              echo "Using vars file: ${{ inputs.vars_file }}"
-            fi
-          fi
 
           # Only target resources that are modified in code
           targets=${{ steps.targets.outputs.targets }}
@@ -293,19 +295,16 @@ jobs:
           echo "Terraform command: $cmd"
 
           start=$(date +%s)
-          # handle errors and capture output
-          set +e
-          docker compose run $cmd 2>&1 | tee tf.console.txt
+          docker compose run --rm $cmd 2>&1 | tee tf.console.txt
           status=${PIPESTATUS[0]}
-          set -e
           end=$(date +%s)
 
           echo "duration=$((end - start))" >> $GITHUB_OUTPUT
           echo "cmd=$cmd" >> $GITHUB_OUTPUT
 
           if [ $status -ne 0 ]; then
-            echo "Terraform apply failed."
-            exit 1
+            echo "Terraform apply failed"
+            exit $status
           fi
 
       - name: Tag commit on successful apply
@@ -317,7 +316,7 @@ jobs:
           git push --force origin "refs/tags/$TAG:refs/tags/$TAG"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      
+
       - name: Label PR deployment lock
         uses: actions/github-script@v7
         with:
@@ -362,7 +361,7 @@ jobs:
             -e 's/^  # \(.* be updated\|.* be replaced\)/! \1/' \
             -e 's/^  # \(.* be read\)/~ \1/' \
             -e 's/^  # \(.*\)/# \1/' > tf.diff.txt || true
-          
+
           # Grab the summary lines for the expand text
           awk '/^(Error:|Apply complete!|No changes.|Success)/' tf.console.txt > tf.summary.txt
 
@@ -426,7 +425,7 @@ jobs:
           script: |
             const state = (`${{ job.status }}` === 'success') ? 'success' : 'failure';
             const runUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
-            const duration = ${{ steps.apply.outputs.duration }} || '0';
+            const duration = ${{ steps.apply.outputs.duration || 0 }};
 
             github.rest.repos.createCommitStatus({
               owner: context.repo.owner,
@@ -454,7 +453,7 @@ jobs:
         working-directory: ${{ inputs.directory }}
 
     steps:
-      - name: Checkout main branch 
+      - name: Checkout main branch
         uses: actions/checkout@v4
 
       - name: Decrypt Terraform variables
@@ -471,10 +470,10 @@ jobs:
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
-      
+
       - name: Bake with Compose
         uses: docker/bake-action@v6
-        with: 
+        with:
           source: "{{defaultContext}}:${{ inputs.directory }}"
           set: |
             *.cache-from=type=gha
@@ -497,6 +496,9 @@ jobs:
           TF_CLOUD_ORGANIZATION: ${{ secrets.TF_CLOUD_ORGANIZATION }}
           TF_WORKSPACE: ${{ inputs.directory }}
         run: |
+          set +e  # Disable immediate exit on error to handle errors gracefully
+          status=0
+
           # Build terraform apply command based on vars file and SOPS usage
           cmd="terraform apply -no-color -input=false -auto-approve"
 
@@ -516,19 +518,18 @@ jobs:
           echo "Terraform command: $cmd"
 
           start=$(date +%s)
-          # handle errors and capture output
-          set +e
-          docker compose run $cmd 2>&1 | tee tf.console.txt
+          # Run terraform apply and capture output
+          docker compose run --rm $cmd 2>&1 | tee tf.console.txt
           status=${PIPESTATUS[0]}
-          set -e
           end=$(date +%s)
 
+          # Always set output variables, even on failure
           echo "duration=$((end - start))" >> $GITHUB_OUTPUT
           echo "cmd=$cmd" >> $GITHUB_OUTPUT
 
           if [ $status -ne 0 ]; then
-            echo "Terraform apply failed."
-            exit 1
+            echo "Terraform apply failed with exit code $status"
+            exit $status
           fi
 
       - name: Tag commit on successful apply
@@ -541,7 +542,7 @@ jobs:
           git push --force origin "refs/tags/$TAG:refs/tags/$TAG"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      
+
       # - name: Remove PR deployment lock label
       #   if: always() && steps.apply.outcome == 'success'
       #   uses: actions/github-script@v7
@@ -565,7 +566,7 @@ jobs:
           style: flat-square
           filename: latest-${{ inputs.directory }}-branch.svg
           github_token: ${{ secrets.GITHUB_TOKEN }}
-      
+
       - name: Release deployment lock
         if: always() && steps.apply.outcome == 'success'
         uses: forevanyeung/lock@e43a0b2920fca2eb45f02bde126d32e09949d419

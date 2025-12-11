@@ -4,6 +4,7 @@ on:
   pull_request:
     branches:
       - main
+      - freeze-state
     paths:
       - preview/**
     types:

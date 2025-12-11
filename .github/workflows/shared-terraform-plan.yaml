@@ -34,7 +34,7 @@ jobs:
     steps:
       - name: Checkout pull request
         uses: actions/checkout@v4
-        with: 
+        with:
           fetch-depth: 0
           ref: ${{ github.head.ref }}
 
@@ -52,18 +52,61 @@ jobs:
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
-      
+
       - name: Bake with Compose
         uses: docker/bake-action@v6
-        with: 
+        with:
           source: "{{defaultContext}}:${{ inputs.directory }}"
           set: |
             *.cache-from=type=gha
             *.cache-to=type=gha,mode=max
             *.output=type=docker
 
+      # if lock is active, use speculative state
+      - name: Get PR and commit SHA
+        id: pr
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { data: pr } = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number
+            });
+
+            // core.setOutput("head_sha", pr.head.sha);
+            core.setOutput("branch", pr.head.ref);
+            // core.setOutput("mergeable_state", pr.mergeable_state);
+
+      - name: Check deployment lock
+        uses: forevanyeung/lock@e43a0b2920fca2eb45f02bde126d32e09949d419
+        id: lock
+        with:
+          mode: check
+          environment: ${{ inputs.directory }}
+
+      - name: Check if lock is for this branch
+        if: steps.lock.outputs.locked == 'true'
+        uses: actions/github-script@v7
+        id: lock-check
+        with:
+          script: |
+            const lockedBranch = `${{ steps.lock.outputs.branch }}`;
+            const currentBranch = `${{ steps.pr.outputs.branch }}`;
+            console.log(`Locked branch: ${lockedBranch}, Current branch: ${currentBranch}`);
+
+            // Check if the lock is held by this branch
+            if (lockedBranch === currentBranch) {
+              console.log('Lock is held by this branch, continuing.');
+              core.setOutput("locked", "false");
+            } else {
+              console.log(`Lock is held by branch ${lockedBranch}, using speculative state.`);
+              core.setOutput("locked", "true");
+            }
+
       - name: Initialize Terraform
         env:
+          SPEC_PLAN: ${{ steps.lock-check.outputs.locked == 'true' && 'true' || '' }}
           TF_TOKEN_APP_TERRAFORM_IO: ${{ secrets.TF_TOKEN_APP_TERRAFORM_IO }}
           TF_CLOUD_ORGANIZATION: ${{ secrets.TF_CLOUD_ORGANIZATION }}
         run: |
@@ -72,32 +115,29 @@ jobs:
           docker compose run --rm terraform validate -no-color
 
       - name: Get Changed Terraform Targets
-        uses: ./.github/shared-actions/tf-targets
         id: targets
-        with:
-          working_directory: ${{ inputs.directory }}
+        env:
+          SPEC_PLAN: ${{ steps.lock-check.outputs.locked == 'true' && 'true' || '' }}
+          TF_TOKEN_APP_TERRAFORM_IO: ${{ secrets.TF_TOKEN_APP_TERRAFORM_IO }}
+          TF_CLOUD_ORGANIZATION: ${{ secrets.TF_CLOUD_ORGANIZATION }}
+        run: |
+          docker compose run --rm terraform plan -refresh=false -lock=false -json | jq -rs '[.[] | .change.resource.addr | select(.!=null) | "-target=\(.)"] | join(" ")' > targets.txt
+          echo "targets=\"$(cat targets.txt)\"" >> $GITHUB_OUTPUT
+
+      # TODO: skip plan and apply if no changes found
 
       - name: Run Terraform Plan
         id: plan
         env:
+          SPEC_PLAN: ${{ steps.lock-check.outputs.locked == 'true' && 'true' || '' }}
           TF_TOKEN_APP_TERRAFORM_IO: ${{ secrets.TF_TOKEN_APP_TERRAFORM_IO }}
           TF_CLOUD_ORGANIZATION: ${{ secrets.TF_CLOUD_ORGANIZATION }}
         run: |
+          set +e  # Disable immediate exit on error to handle errors gracefully
+          status=0
+
           # Build terraform plan command based on vars file and SOPS usage
           cmd="terraform plan -no-color -input=false"
-
-          # Add vars file if specified
-          if [[ -n "${{ inputs.vars_file }}" ]]; then
-            if [[ -n "${{ secrets.sops_age_key }}" && -n "${{ steps.decrypt.outputs.decrypted_file }}" ]]; then
-              # Use decrypted file if SOPS was used
-              cmd="$cmd -var-file=${{ steps.decrypt.outputs.decrypted_file }}"
-              echo "Using SOPS-decrypted vars file: ${{ steps.decrypt.outputs.decrypted_file }}"
-            else
-              # Use original vars file if no SOPS
-              cmd="$cmd -var-file=${{ inputs.vars_file }}"
-              echo "Using vars file: ${{ inputs.vars_file }}"
-            fi
-          fi
 
           # Only target resources that are modified in code
           targets=${{ steps.targets.outputs.targets }}
@@ -107,21 +147,17 @@ jobs:
           echo "Terraform command: $cmd"
 
           start=$(date +%s)
-          
-          # handle errors and capture output
-          set +e
-          docker compose run $cmd 2>&1 | tee tf.console.txt
+          # Run terraform plan and capture output
+          docker compose run --rm $cmd 2>&1 | tee tf.console.txt
           status=${PIPESTATUS[0]}
-          set -e
-
           end=$(date +%s)
 
           echo "duration=$((end - start))" >> $GITHUB_OUTPUT
           echo "cmd=$cmd" >> $GITHUB_OUTPUT
 
           if [ $status -ne 0 ]; then
-            echo "Terraform plan failed."
-            exit 1
+            echo "Terraform apply failed"
+            exit $status
           fi
 
       - name: Format Terraform Plan Diff
@@ -145,7 +181,7 @@ jobs:
             -e 's/^  # \(.* be updated\|.* be replaced\)/! \1/' \
             -e 's/^  # \(.* be read\)/~ \1/' \
             -e 's/^  # \(.*\)/# \1/' > tf.diff.txt || true
-          
+
           # Grab the summary lines for the expand text
           awk '/^(Error:|Plan:|Apply complete!|No changes.|Success)/' tf.console.txt > tf.summary.txt
       - name: Comment Terraform Plan

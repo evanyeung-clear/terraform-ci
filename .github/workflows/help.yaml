@@ -3,6 +3,8 @@ name: Pull Request Help
 on:
   pull_request:
     types: [opened]
+    branches:
+      - main
 
 jobs:
   comment_help:
@@ -14,7 +16,7 @@ jobs:
     steps:
       - name: Write help comment on PR
         uses: actions/github-script@v7
-        with: 
+        with:
           script: |
             var body = `
             ### 👋 Thanks for opening a pull request!
@@ -40,4 +42,3 @@ jobs:
               repo: context.repo.repo,
               body: body
             })
-      
