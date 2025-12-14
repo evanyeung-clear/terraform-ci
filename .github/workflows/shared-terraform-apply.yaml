@@ -282,8 +282,7 @@ jobs:
             *.output=type=docker
 
       - name: Freeze Terraform state
-        if: false
-        uses: ./.github/shared-actions/copy-tf-state@freeze-state
+        uses: ./.github/shared-actions/copy-tf-state
         with:
           from_workspace: ${{ inputs.directory }}
           to_workspace: ${{ inputs.directory }}_speculative
