@@ -184,6 +184,7 @@ jobs:
 
           # Grab the summary lines for the expand text
           awk '/^(Error:|Plan:|Apply complete!|No changes.|Success)/' tf.console.txt > tf.summary.txt
+
       - name: Comment Terraform Plan
         uses: actions/github-script@v7
         with:
