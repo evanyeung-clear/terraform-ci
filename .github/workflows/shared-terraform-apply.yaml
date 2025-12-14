@@ -420,20 +420,26 @@ jobs:
             const summary = safeReadFile('${{ inputs.directory }}/tf.summary.txt', 'View output for details');
             const cleanApply = safeReadFile('${{ inputs.directory }}/tf.console.stripped.txt', 'No apply output available');
 
-            var body = `
-            **Terraform apply** (Okta ${{ inputs.directory }}) ran in [${{ steps.apply.outputs.duration }} seconds](${runUrl}).
-            \`\`\`
-            ${{ steps.apply.outputs.cmd }}
-            \`\`\`
+            if(${{ job.status == 'failure' }}) {
+              var body = `
+              **Terraform apply** (Okta ${{ inputs.directory }}) [failed](${runUrl}).
+              `
+            } else {
+              var body = `
+              **Terraform apply** (Okta ${{ inputs.directory }}) ran in [${{ steps.apply.outputs.duration }} seconds](${runUrl}).
+              \`\`\`
+              ${{ steps.apply.outputs.cmd }}
+              \`\`\`
 
-            <details>
-            <summary>${summary}</summary>
+              <details>
+              <summary>${summary}</summary>
 
-            \`\`\`
-            ${cleanApply}
-            \`\`\`
-            </details>
-            `
+              \`\`\`
+              ${cleanApply}
+              \`\`\`
+              </details>
+              `
+            }
 
             github.rest.issues.updateComment({
               owner: context.repo.owner,
