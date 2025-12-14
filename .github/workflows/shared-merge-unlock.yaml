@@ -121,6 +121,7 @@ jobs:
         uses: forevanyeung/lock@e43a0b2920fca2eb45f02bde126d32e09949d419
         with:
           mode: unlock
+          environment: ${{ inputs.directory }}
 
       - name: Comment lock released
         uses: actions/github-script@v7
