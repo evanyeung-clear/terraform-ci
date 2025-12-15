@@ -32,6 +32,7 @@ runs:
           // COPY THIS AND BELOW
           const fs = require('fs');
           const path = require('path');
+          const core = require('@actions/core');
 
           const headers = {
             'Authorization': `Bearer ${{ inputs.TF_TOKEN_APP_TERRAFORM_IO }}`,
@@ -90,6 +91,7 @@ runs:
           // COPY THIS AND BELOW
           const fs = require('fs');
           const path = require('path');
+          const core = require('@actions/core');
 
           const headers = {
             'Authorization': `Bearer ${{ inputs.TF_TOKEN_APP_TERRAFORM_IO }}`,
