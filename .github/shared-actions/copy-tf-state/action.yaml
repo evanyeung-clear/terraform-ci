@@ -142,7 +142,6 @@ runs:
 
     - name: Download source state
       uses: actions/github-script@v7
-      need: source, destination
       with:
         script: |
           // Check source state serial is greater than destination state serial
