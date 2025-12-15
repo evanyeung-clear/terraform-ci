@@ -67,7 +67,7 @@ runs:
           const state = await stateResponse.json();
 
           // write state file
-          const stateFilePath = path.join('${{ inputs.from_workspace }}', 'terraform.tfstate');
+          const stateFilePath = path.join('${{ inputs.source_workspace }}', 'terraform.tfstate');
           fs.writeFileSync(stateFilePath, JSON.stringify(state, null, 2));
           console.log(`State file written to ${stateFilePath}`);
 
@@ -129,7 +129,7 @@ runs:
           const state = await stateResponse.json();
 
           // write state file
-          const stateFilePath = path.join('${{ inputs.from_workspace }}', 'terraform.tfstate');
+          const stateFilePath = path.join('${{ inputs.destination_workspace }}', 'terraform.tfstate');
           fs.writeFileSync(stateFilePath, JSON.stringify(state, null, 2));
           console.log(`State file written to ${stateFilePath}`);
 
