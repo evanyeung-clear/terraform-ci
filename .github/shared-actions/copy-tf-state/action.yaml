@@ -29,8 +29,8 @@ runs:
         script: |
           const workspace = '${{ inputs.source_workspace }}';
           
-          // COPY THIS AND BELOW
           const fs = require('fs');
+          // COPY THIS AND BELOW
           const path = require('path');
           const crypto = require('crypto');
 
@@ -82,6 +82,12 @@ runs:
           const md5Hash = crypto.createHash('md5').update(stateString).digest('hex');
           console.log(`State MD5 hash: ${md5Hash}`);
           core.setOutput("md5_hash", md5Hash);
+
+          // ONLY SAVE THE SOURCE STATE, DO NOT COPY
+          // write state file to disk
+          const stateFile = path.join('${{ inputs.source_workspace }}', 'terraform.tfstate');
+          fs.writeFileSync(stateFile, stateString);
+          console.log(`State file written to ${stateFile}`);
 
     - name: Download destination state
       id: destination
@@ -91,7 +97,6 @@ runs:
           const workspace = '${{ inputs.destination_workspace }}';
 
           // COPY THIS AND BELOW
-          const fs = require('fs');
           const path = require('path');
           const crypto = require('crypto');
 
@@ -144,7 +149,7 @@ runs:
           console.log(`State MD5 hash: ${md5Hash}`);
           core.setOutput("md5_hash", md5Hash);
 
-    - name: Download source state
+    - name: Compare source and destination state
       uses: actions/github-script@v7
       with:
         script: |
@@ -187,8 +192,8 @@ runs:
               data: {
                 type: 'state-versions',
                 attributes: {
-                  serial: ${{ steps.source.outputs.serial }},
-                  md5: ${{ steps.source.outputs.md5_hash }}
+                  serial: '${{ steps.source.outputs.serial }}',
+                  md5: '${{ steps.source.outputs.md5_hash }}'
                 }
               }
             })
