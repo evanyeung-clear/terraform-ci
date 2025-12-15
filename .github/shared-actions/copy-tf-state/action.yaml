@@ -38,19 +38,23 @@ runs:
             'Content-Type': 'application/vnd.api+json'
           };
 
+          console.log('1');
           // 1. Download main state
           const response = await fetch(`https://app.terraform.io/api/v2/organizations/${{ inputs.TF_CLOUD_ORGANIZATION }}/workspaces/${workspace}`, {
             headers: headers
           });
           
+          console.log('2');
           if (!response.ok) {
             throw new Error(`Failed to fetch source workspace: ${response.statusText}`);
           }
 
+          console.log('3');
           const data = await response.json();
           const workspaceId = data.data.id;
           core.setOutput("workspace_id", workspaceId);
 
+          console.log('4');
           // download state file
           const stateId = data.data.relationships.current-state-version.data['id'];
           
