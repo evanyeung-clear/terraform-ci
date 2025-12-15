@@ -149,13 +149,13 @@ runs:
       with:
         script: |
           // Check source state serial is greater than destination state serial
-          if (${{ steps.source.outputs.serial }} < ${{ steps.destination.outputs.serial }}) {
+          if ("${{ steps.source.outputs.serial }}" < "${{ steps.destination.outputs.serial }}") {
             throw new Error('Destination state is newer than source state, cannot overwrite');
           }
 
           // If serials are equal, check md5 hashes are equal
-          if (${{ steps.source.outputs.serial }} == ${{ steps.destination.outputs.serial }}) {
-            if (${{ steps.source.outputs.md5_hash }} != ${{ steps.destination.outputs.md5_hash }}) {
+          if ("${{ steps.source.outputs.serial }}" == "${{ steps.destination.outputs.serial }}") {
+            if ("${{ steps.source.outputs.md5_hash }}" != "${{ steps.destination.outputs.md5_hash }}") {
               throw new Error('Source and destination states are the same version, but have different MD5 hashes, cannot overwrite');
             }
           }
