@@ -45,20 +45,22 @@ runs:
           });
 
           if (!response.ok) {
-            throw new Error(`Failed to fetch source workspace '${workspace}' in organization '${{ inputs.TF_CLOUD_ORGANIZATION }}': ${response.statusText}`);
+            throw new Error(`Failed to fetch workspace '${workspace}' in organization '${{ inputs.TF_CLOUD_ORGANIZATION }}': ${response.statusText}`);
           }
 
           const data = await response.json();
           const workspaceId = data.data.id;
+          console.log(`Workspace Id: ${workspaceId}`);
           core.setOutput("workspace_id", workspaceId);
 
           // download state file
           const stateId = data.data.relationships['current-state-version'].data['id'];
           
           if (!stateId) {
-            throw new Error(`No state version found for source workspace`);
+            throw new Error(`No state version found`);
           }
 
+          console.log(`State version Id: ${stateId}`);
           const stateUrl = `https://app.terraform.io/api/v2/state-versions/${stateId}/hosted_state`;
           const stateResponse = await fetch(stateUrl, { headers: headers });
           const state = await stateResponse.json();
@@ -98,20 +100,22 @@ runs:
           });
 
           if (!response.ok) {
-            throw new Error(`Failed to fetch destination workspace '${workspace}' in organization '${{ inputs.TF_CLOUD_ORGANIZATION }}': ${response.statusText}`);
+            throw new Error(`Failed to fetch workspace '${workspace}' in organization '${{ inputs.TF_CLOUD_ORGANIZATION }}': ${response.statusText}`);
           }
 
           const data = await response.json();
           const workspaceId = data.data.id;
+          console.log(`Workspace Id: ${workspaceId}`);
           core.setOutput("workspace_id", workspaceId);
 
           // download state file
           const stateId = data.data.relationships['current-state-version'].data['id'];
           
           if (!stateId) {
-            throw new Error(`No state version found for source workspace`);
+            throw new Error(`No state version found`);
           }
 
+          console.log(`State version Id: ${stateId}`);
           const stateUrl = `https://app.terraform.io/api/v2/state-versions/${stateId}/hosted_state`;
           const stateResponse = await fetch(stateUrl, { headers: headers });
           const state = await stateResponse.json();
