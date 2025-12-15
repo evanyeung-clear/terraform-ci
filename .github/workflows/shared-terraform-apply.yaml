@@ -285,7 +285,7 @@ jobs:
         uses: ./.github/shared-actions/copy-tf-state
         with:
           source_workspace: ${{ inputs.directory }}
-          destination_workspace: ${{ inputs.directory }}_speculative
+          destination_workspace: ${{ inputs.directory }}-speculative
           TF_CLOUD_ORGANIZATION: ${{ secrets.TF_CLOUD_ORGANIZATION }}
           TF_TOKEN_APP_TERRAFORM_IO: ${{ secrets.TF_TOKEN_APP_TERRAFORM_IO }}
 
