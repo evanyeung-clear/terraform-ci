@@ -4,12 +4,10 @@ description: "Copies the Terraform state from one workspace to another"
 inputs:
   source_workspace:
     description: "Source Terraform Cloud workspace"
-    required: true
-    type: string
+    required: truegit
   destination_workspace:
     description: "Destination Terraform Cloud workspace"
     required: true
-    type: string
   TF_CLOUD_ORGANIZATION:
     description: "Terraform Cloud organization name"
     required: true
