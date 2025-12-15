@@ -284,8 +284,8 @@ jobs:
       - name: Freeze Terraform state
         uses: ./.github/shared-actions/copy-tf-state
         with:
-          from_workspace: ${{ inputs.directory }}
-          to_workspace: ${{ inputs.directory }}_speculative
+          source_workspace: ${{ inputs.directory }}
+          destination_workspace: ${{ inputs.directory }}_speculative
           TF_CLOUD_ORGANIZATION: ${{ secrets.TF_CLOUD_ORGANIZATION }}
           TF_TOKEN_APP_TERRAFORM_IO: ${{ secrets.TF_TOKEN_APP_TERRAFORM_IO }}
 
