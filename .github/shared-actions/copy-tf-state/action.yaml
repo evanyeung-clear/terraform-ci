@@ -206,7 +206,7 @@ runs:
                 attributes: {
                   serial: '${{ steps.source.outputs.serial }}',
                   md5: '${{ steps.source.outputs.md5_hash }}',
-                  lineage: '${{ steps.source.outputs.lineage }}'
+                  lineage: '${{ steps.destination.outputs.lineage }}'
                 }
               }
             })
