@@ -60,9 +60,15 @@ runs:
             throw new Error(`No state version found`);
           }
 
+          // skip a step getting the actual download url, and we create one ourselves, this could break...
           console.log(`State version Id: ${stateId}`);
-          const stateUrl = `https://app.terraform.io/api/v2/state-versions/${stateId}/hosted_state`;
+          const stateUrl = `https://app.terraform.io/api/state-versions/${stateId}/hosted_state`;
           const stateResponse = await fetch(stateUrl, { headers: headers });
+
+          if (!stateResponse.ok) {
+            throw new Error(`Failed to fetch state version '${stateId}': ${response.statusText}`);
+          }
+
           const state = await stateResponse.json();
 
           // TODO: make this stream
@@ -115,9 +121,15 @@ runs:
             throw new Error(`No state version found`);
           }
 
+          // skip a step getting the actual download url, and we create one ourselves, this could break...
           console.log(`State version Id: ${stateId}`);
-          const stateUrl = `https://app.terraform.io/api/v2/state-versions/${stateId}/hosted_state`;
+          const stateUrl = `https://app.terraform.io/api/state-versions/${stateId}/hosted_state`;
           const stateResponse = await fetch(stateUrl, { headers: headers });
+
+          if (!stateResponse.ok) {
+            throw new Error(`Failed to fetch state version '${stateId}': ${response.statusText}`);
+          }
+
           const state = await stateResponse.json();
 
           // TODO: make this stream
