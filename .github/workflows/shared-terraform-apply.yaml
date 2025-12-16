@@ -331,6 +331,7 @@ jobs:
           echo "Terraform command: $cmd"
 
           start=$(date +%s)
+          # Run terraform apply and capture output
           docker compose run --rm $cmd 2>&1 | tee tf.console.txt
           status=${PIPESTATUS[0]}
           end=$(date +%s)
@@ -537,19 +538,6 @@ jobs:
 
           # Build terraform apply command based on vars file and SOPS usage
           cmd="terraform apply -no-color -input=false -auto-approve"
-
-          # Add vars file if specified
-          if [[ -n "${{ inputs.vars_file }}" ]]; then
-            if [[ -n "${{ secrets.sops_age_key }}" && -n "${{ steps.decrypt.outputs.decrypted_file }}" ]]; then
-              # Use decrypted file if SOPS was used
-              cmd="$cmd -var-file=${{ steps.decrypt.outputs.decrypted_file }}"
-              echo "Using SOPS-decrypted vars file: ${{ steps.decrypt.outputs.decrypted_file }}"
-            else
-              # Use original vars file if no SOPS
-              cmd="$cmd -var-file=${{ inputs.vars_file }}"
-              echo "Using vars file: ${{ inputs.vars_file }}"
-            fi
-          fi
 
           echo "Terraform command: $cmd"
 
