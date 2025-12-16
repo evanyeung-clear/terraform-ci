@@ -45,6 +45,7 @@ jobs:
             })
 
             core.setOutput("id", comment.id)
+            core.setOutput("html_url", comment.html_url)
 
       - name: Get PR and commit SHA
         id: pr
@@ -224,7 +225,7 @@ jobs:
         with:
           mode: lock
           environment: ${{ inputs.directory }}
-          link: ${{ github.event.comment.html_url }}
+          link: ${{ steps.comment.outputs.html_url }}
           branch: ${{ steps.pr.outputs.branch }}
 
   apply:
@@ -439,6 +440,9 @@ jobs:
               ${cleanApply}
               \`\`\`
               </details>
+
+              ---
+              > 📌 Reminder to validate the configuration was applied correctly, then **merge this PR** to release the deployment lock.
               `
             }
 
