@@ -1,9 +1,6 @@
 services:
   terraform:
-    build:
-      context: https://github.com/evanyeung-clear/terraform-ci.git
-      args:
-        TERRAFORM_VERSION: "1.8.5"
+    image: ghcr.io/evanyeung-clear/terraform-ci/terraform:1.8.3-latest
     working_dir: /terraform
     volumes:
       - "./:/terraform"
