@@ -59,6 +59,7 @@ jobs:
           source: "{{defaultContext}}:${{ inputs.directory }}"
           set: |
             *.cache-from=type=gha
+            *.cache-from=type=inline
             *.cache-to=type=gha,mode=max
             *.output=type=docker
 
