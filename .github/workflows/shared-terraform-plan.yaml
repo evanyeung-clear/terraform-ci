@@ -27,6 +27,7 @@ jobs:
     permissions:
       pull-requests: write
       statuses: write
+      packages: read
     defaults:
       run:
         working-directory: ${{ inputs.directory }}
@@ -50,18 +51,15 @@ jobs:
           output_file: terraform.tfvars.json
           sops_age_key: ${{ secrets.sops_age_key }}
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Bake with Compose
-        uses: docker/bake-action@v6
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
         with:
-          source: "{{defaultContext}}:${{ inputs.directory }}"
-          set: |
-            *.cache-from=type=gha
-            *.cache-from=type=inline
-            *.cache-to=type=gha,mode=max
-            *.output=type=docker
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Pull Terraform Docker image
+        run: docker compose pull terraform
 
       # if lock is active, use speculative state
       - name: Get PR and commit SHA

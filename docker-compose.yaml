@@ -1,6 +1,6 @@
 services:
   terraform:
-    build: ./
+    image: ghcr.io/evanyeung-clear/terraform-ci/terraform:1.8.3-latest
     working_dir: /terraform
     volumes:
       - "./:/terraform"
