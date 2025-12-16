@@ -221,7 +221,7 @@ runs:
           console.log(`State version created: ${data.data.id}`);
 
           // 3. Upload state file to new state version
-          const uploadUrl = data.data.attributes['hosted-state-download-url'];
+          const uploadUrl = data.data.attributes['hosted-state-upload-url'];
           const stateFile = fs.readFileSync('${{ inputs.source_workspace }}/terraform.tfstate');
           const stateUploadResponse = await fetch(uploadUrl, {
             method: 'PUT',
@@ -254,5 +254,14 @@ runs:
           });
 
           if (!unlockResponse.ok) {
-            throw new Error(`Failed to unlock workspace: ${unlockResponse.statusText}`);
+            const forceUnlockResponse = await fetch(`https://app.terraform.io/api/v2/workspaces/${{ steps.destination.outputs.workspace_id }}/actions/force-unlock`, {
+              method: 'POST',
+              headers: headers
+            });
+
+            if (!forceUnlockResponse.ok) {
+              throw new Error(`Failed to force unlock workspace: ${forceUnlockResponse.statusText}`);
+            }
+            
+            console.log('Workspace had to be forced unlocked');
           }

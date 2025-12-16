@@ -8,7 +8,7 @@ jobs:
   check:
     if: >
       github.event.issue.pull_request != null && 
-      github.event.comment.body == '/terraform apply' && 
+      (github.event.comment.body == '/terraform apply' || github.event.comment.body == '/tf apply' )&& 
       github.event.issue.state == 'open'
     runs-on: ubuntu-latest
     permissions:
