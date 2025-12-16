@@ -45,6 +45,9 @@ terraform.rc
 # Ignore terragrunt cache
 .terragrunt-cache
 
+# Ignore AI settings
+.claude/settings.local.json
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]

@@ -10,6 +10,6 @@ RUN apk add --no-cache curl unzip \
     && apk del curl unzip
 
 # Copy the Terraform wrapper into the image
-COPY /src/terraform.py .
+COPY /src/terraform.py /terraform.py
 
 ENTRYPOINT [ "python", "/terraform.py" ]
