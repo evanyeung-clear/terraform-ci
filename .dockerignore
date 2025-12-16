@@ -1,0 +1,6 @@
+# Ignore everything by default
+*
+
+# Only include what's needed for the Docker build
+!Dockerfile
+!src/

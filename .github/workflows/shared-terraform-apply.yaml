@@ -282,7 +282,7 @@ jobs:
             *.cache-to=type=gha,mode=max
             *.output=type=docker
 
-      - name: Freeze Terraform state
+      - name: Freeze speculative Terraform state
         uses: ./.github/shared-actions/copy-tf-state
         with:
           source_workspace: ${{ inputs.directory }}
