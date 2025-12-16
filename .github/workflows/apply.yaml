@@ -57,6 +57,7 @@ jobs:
       pull-requests: write
       contents: write
       statuses: write
+      packages: read
 
   production:
     needs: check
@@ -70,3 +71,4 @@ jobs:
       pull-requests: write
       contents: write
       statuses: write
+      packages: read
