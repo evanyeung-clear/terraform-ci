@@ -184,7 +184,8 @@ runs:
       uses: actions/github-script@v7
       with:
         script: |
-          // Upload a speculative state for plan during locked applies
+          const fs = require('fs');
+
           const headers = {
             'Authorization': `Bearer ${{ inputs.TF_TOKEN_APP_TERRAFORM_IO }}`,
             'Content-Type': 'application/vnd.api+json'
@@ -236,7 +237,7 @@ runs:
 
           console.log('State file uploaded successfully');
 
-    - name: Upload destination state
+    - name: Unlock workspace
       if: always()
       uses: actions/github-script@v7
       with:
@@ -251,3 +252,7 @@ runs:
             method: 'POST',
             headers: headers
           });
+
+          if (!unlockResponse.ok) {
+            throw new Error(`Failed to unlock workspace: ${unlockResponse.statusText}`);
+          }
