@@ -19,9 +19,6 @@ runs:
   using: composite
 
   steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
-
     - name: Download destination state
       id: destination
       uses: actions/github-script@v7
