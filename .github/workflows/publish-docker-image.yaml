@@ -24,7 +24,7 @@ jobs:
           # - "1.9.0"
           # - "1.10.0"
           
-    runs-on: ${{ matrix.runner }}
+    runs-on: ubuntu-latest
     name: Build and push Terraform ${{ matrix.terraform_version }}
 
     steps:
