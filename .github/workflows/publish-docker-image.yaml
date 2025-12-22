@@ -18,26 +18,21 @@ jobs:
   build-and-push:
     strategy:
       matrix:
-        runner:
-          - "ubuntu-latest"
-          - "ubuntu-24.04-arm"
         terraform_version:
           - "1.8.3"
           # Add more versions here as needed, e.g.:
           # - "1.9.0"
           # - "1.10.0"
-        include:
-          - runner: "ubuntu-latest"
-            platform: "linux/amd64"
-          - runner: "ubuntu-24.04-arm"
-            platform: "linux/arm64"
           
     runs-on: ${{ matrix.runner }}
-    name: Build and push Terraform ${{ matrix.terraform_version }} (${{ matrix.platform }})
+    name: Build and push Terraform ${{ matrix.terraform_version }}
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -64,10 +59,10 @@ jobs:
         with:
           context: .
           push: true
+          platforms: linux/amd64,linux/arm64
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
             TERRAFORM_VERSION=${{ matrix.terraform_version }}
           cache-from: type=gha,scope=terraform-${{ matrix.terraform_version }}
           cache-to: type=gha,mode=max,scope=terraform-${{ matrix.terraform_version }}
-          platforms: ${{ matrix.platform }}
