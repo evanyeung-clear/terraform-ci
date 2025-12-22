@@ -33,7 +33,7 @@ jobs:
             platform: "linux/arm64"
           
     runs-on: ${{ matrix.runner }}
-    name: Build and push Terraform ${{ matrix.terraform_version }}
+    name: Build and push Terraform ${{ matrix.terraform_version }} (${{ matrix.platform }})
 
     steps:
       - name: Checkout repository
