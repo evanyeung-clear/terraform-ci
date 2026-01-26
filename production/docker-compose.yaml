@@ -9,3 +9,6 @@ services:
       - TF_WORKSPACE=${TF_WORKSPACE:-production}${SPEC_PLAN:+-speculative}
       - TF_CLOUD_ORGANIZATION
       - TF_TOKEN_APP_TERRAFORM_IO
+      - TF_LOG
+      - TF_LOG_PATH
+      - TF_CLI_ARGS_init=-reconfigure
