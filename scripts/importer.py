@@ -3,15 +3,12 @@
 Okta Terraform Import Script
 
 This script uses the Okta Python SDK to generate Terraform import blocks for Okta resources.
-It reads OAuth2 credentials from a terraform.plan.enc.tfvars.json file in a specified directory.
+It reads OAuth2 credentials from a terraform.tfvars.json file in the current working directory.
 
 Usage:
-    import.py <directory_name> [--type=<types>]
+    uv run okta-import [--type=<types>]
 
-    Where <directory_name> is the directory containing terraform.plan.enc.tfvars.json
-    (e.g., 'preview' or 'production')
-
-    And <types> is a comma-separated list of Okta resource types to process:
+    Where <types> is a comma-separated list of Okta resource types to process:
     - groups: Okta groups
     - users: Okta users
     - apps: Okta applications
@@ -19,12 +16,11 @@ Usage:
     If no --type is specified, all resource types will be processed.
 
 Examples:
-    import.py preview
-    import.py production --type=groups
-    import.py preview --type=groups,users
+    cd preview && uv run okta-import
+    cd production && uv run okta-import --type=groups
+    cd preview && uv run okta-import --type=groups,users
 
-The script will look for terraform.plan.enc.tfvars.json in the specified directory and use
-SOPS to decrypt the Okta OAuth2 credentials.
+The script will look for terraform.tfvars.json in the current working directory.
 """
 
 import sys
@@ -32,35 +28,32 @@ import json
 import asyncio
 import subprocess
 from pathlib import Path
-from OktaTFImport import OktaTFImport
+from .OktaTFImport import OktaTFImport
 
 def parse_arguments() -> tuple[str, list[str]]:
     """Parse command line arguments."""
-    if len(sys.argv) < 2:
-        print("Usage: import.py <directory_name> [--type=<types>]")
-        print("\nWhere <directory_name> is the directory containing terraform.plan.enc.tfvars.json")
-        print("(relative to the base project directory, e.g., 'preview' or 'production')")
-        print("and <types> is a comma-separated list of Okta resources to read")
-        print("\nSupported types:")
-        print("  groups    - Okta groups")
-        print("  users     - Okta users")
-        print("  apps      - Okta applications")
-        print("\nExamples:")
-        print("  import.py preview")
-        print("  import.py production --type=groups")
-        print("  import.py preview --type=groups,users")
-
-        sys.exit(1)
-
-    directory = sys.argv[1]
+    # Use current working directory
+    directory = str(Path.cwd())
 
     # Parse type argument
     resource_types = []
-    for arg in sys.argv[2:]:
+    for arg in sys.argv[1:]:
         if arg.startswith('--type='):
             types_str = arg.split('=', 1)[1]
             resource_types = [t.strip().lower() for t in types_str.split(',')]
             break
+        elif arg in ['--help', '-h']:
+            print("Usage: uv run okta-import [--type=<types>]")
+            print("\nWhere <types> is a comma-separated list of Okta resources to read")
+            print("\nSupported types:")
+            print("  groups    - Okta groups")
+            print("  users     - Okta users")
+            print("  apps      - Okta applications")
+            print("\nExamples:")
+            print("  cd preview && uv run okta-import")
+            print("  cd production && uv run okta-import --type=groups")
+            print("  cd preview && uv run okta-import --type=groups,users")
+            sys.exit(0)
 
     # If no types specified, default to all supported types
     if not resource_types:
@@ -109,6 +102,20 @@ def export_terraform_state(directory: str) -> str | None:
     except json.JSONDecodeError as e:
         print(f"Error parsing terraform state JSON: {str(e)}", file=sys.stderr)
         return None
+    
+def generate_terraform_config(directory: str) -> None:
+    """Generate terraform config from import blocks."""
+    try:
+        generated_file = "generated.tf"
+        subprocess.run(
+            ["docker", "compose", "run", "--rm", "terraform", "plan", f"-generate-config-out={generated_file}"],
+            cwd=directory,
+            capture_output=True,
+            text=True,
+            check=False
+        )
+    except subprocess.CalledProcessError as e:
+        print(f"Error generating terraform config: {e.stderr}", file=sys.stderr)
 
 async def main():
     """Main function to run the Okta terraform import tool."""
@@ -175,14 +182,7 @@ async def main():
         await okta.close()
 
         # Generate terraform config
-        generated_file = "generated.tf"
-        subprocess.run(
-            ["docker", "compose", "run", "--rm", "terraform", "plan", f"-generate-config-out={generated_file}"],
-            cwd=directory,
-            capture_output=True,
-            text=True,
-            check=False
-        )
+        generate_terraform_config(directory)
 
     except KeyboardInterrupt:
         print("\nOperation cancelled by user.")
@@ -190,6 +190,11 @@ async def main():
     except Exception as e:
         print(f"Fatal error: {str(e)}", file=sys.stderr)
         sys.exit(1)
+
+
+def cli_entry():
+    """Entry point for uv tool / pip install."""
+    asyncio.run(main())
 
 
 if __name__ == "__main__":
