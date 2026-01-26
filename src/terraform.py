@@ -129,7 +129,7 @@ def consolidate_tf_files():
 
 def is_allowed_terraform_cmd(cmd):
     """List of allowed terraform commands"""
-    return cmd in ["init", "fmt", "validate", "plan", "apply"] 
+    return cmd in ["init", "fmt", "validate", "plan", "apply", "show"] 
 
 def run_terraform(args):
     """Run terraform with the provided arguments"""
