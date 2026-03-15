@@ -59,7 +59,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Pull Terraform Docker image
-        run: docker compose pull terraform
+        run: docker compose pull terraform-ci
 
       # if lock is active, use speculative state
       - name: Get PR and commit SHA
@@ -109,9 +109,9 @@ jobs:
           TF_TOKEN_APP_TERRAFORM_IO: ${{ secrets.TF_TOKEN_APP_TERRAFORM_IO }}
           TF_CLOUD_ORGANIZATION: ${{ secrets.TF_CLOUD_ORGANIZATION }}
         run: |
-          docker compose run --rm terraform init -input=false
-          docker compose run --rm terraform fmt -check
-          docker compose run --rm terraform validate -no-color
+          docker compose run --rm terraform-ci init -input=false
+          docker compose run --rm terraform-ci fmt -check
+          docker compose run --rm terraform-ci validate -no-color
 
       - name: Get Changed Terraform Targets
         id: targets
@@ -120,7 +120,7 @@ jobs:
           TF_TOKEN_APP_TERRAFORM_IO: ${{ secrets.TF_TOKEN_APP_TERRAFORM_IO }}
           TF_CLOUD_ORGANIZATION: ${{ secrets.TF_CLOUD_ORGANIZATION }}
         run: |
-          docker compose run --rm terraform plan -refresh=false -json | jq -rs '[.[] | .change.resource.addr | select(.!=null) | "-target=\(.)"] | join(" ")' > targets.txt
+          docker compose run --rm terraform-ci plan -refresh=false -json | jq -rs '[.[] | .change.resource.addr | select(.!=null) | "-target=\(.)"] | join(" ")' > targets.txt
           echo "targets='$(cat targets.txt)'" >> $GITHUB_OUTPUT
 
       # TODO: skip plan and apply if no changes found
@@ -136,7 +136,7 @@ jobs:
           status=0
 
           # Build terraform plan command based on vars file and SOPS usage
-          cmd="terraform plan -no-color -input=false"
+          cmd="terraform-ci plan -no-color -input=false"
 
           # Only target resources that are modified in code
           targets=${{ steps.targets.outputs.targets }}
