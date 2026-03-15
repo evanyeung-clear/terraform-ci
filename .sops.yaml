@@ -1,3 +1,5 @@
 creation_rules:
   - path_regex: .*
-    age: "age1jdgklkpntcawrdg0jtugr6900lycgd8hu7wxp24dnhmeusa2ns3s5x3fmj"
+    age: >-
+      age1jdgklkpntcawrdg0jtugr6900lycgd8hu7wxp24dnhmeusa2ns3s5x3fmj,
+      age182h7fw02x7fxfjgqavnujqvfx4gpwx0h7825qar4szescgwmmchs7mfujx
