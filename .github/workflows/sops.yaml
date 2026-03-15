@@ -1,0 +1,116 @@
+name: SOPS Update Keys
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - ".sops.yaml"
+  pull_request_review:
+    types: [submitted]
+
+jobs:
+  add-label:
+    name: Add sops-updatekeys label
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    permissions:
+      pull-requests: write
+    outputs:
+      is_approved: ${{ steps.check-approval.outputs.approved }}
+    steps:
+      - name: Add label
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              labels: ['sops-updatekeys']
+            });
+
+      - name: Check for existing approval
+        id: check-approval
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { data: reviews } = await github.rest.pulls.listReviews({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number
+            });
+            const approved = reviews.some(r => r.state === 'APPROVED');
+            core.setOutput('approved', approved ? 'true' : 'false');
+            console.log(`PR approval status: ${approved}`);
+
+  updatekeys:
+    name: Update SOPS keys
+    needs: add-label
+    runs-on: ubuntu-latest
+    if: |
+      always() && (
+        (needs.add-label.result == 'success' && needs.add-label.outputs.is_approved == 'true') ||
+        (github.event_name == 'pull_request_review' && contains(github.event.pull_request.labels.*.name, 'sops-updatekeys') && github.event.review.state == 'approved')
+      )
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          fetch-depth: 2
+
+      - name: Install SOPS
+        uses: ./.github/shared-actions/install-sops
+        with:
+          version: 3.11.0
+
+      - name: Update SOPS keys for all encrypted files
+        env:
+          SOPS_AGE_KEY: ${{ secrets.SOPS_AGE_KEY }}
+        run: |
+          echo "Finding all *.enc.tfvars.json files..."
+          files=$(find . -name "*.enc.tfvars.json" -type f)
+
+          if [ -z "$files" ]; then
+            echo "No encrypted files found."
+            exit 0
+          fi
+
+          echo "Found files:"
+          echo "$files"
+          echo ""
+
+          for file in $files; do
+            echo "Updating keys for: $file"
+            sops updatekeys -y "$file"
+            echo "✓ Updated: $file"
+            echo ""
+          done
+
+          echo "All files updated successfully!"
+
+      - name: Commit and push changes
+        run: |
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "actions@github.com"
+          git add .
+
+          git diff --staged --quiet && git diff --cached --quiet && echo "No changes to commit" && exit 0
+
+          git commit -m "chore: update sops keys for encrypted files"
+          git push
+
+      - name: Remove label
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.issues.removeLabel({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              name: 'sops-updatekeys'
+            });
