@@ -20,7 +20,7 @@ resource "okta_user" "test3" {
 }
 
 resource "okta_user" "test4" {
-  first_name   = "John"
+  first_name = "John"
   last_name  = "Smith"
   login      = "example4@example.com"
   email      = "example4@example.com"
