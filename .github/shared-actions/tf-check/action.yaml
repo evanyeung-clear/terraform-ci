@@ -1,0 +1,300 @@
+name: Terraform Check
+description: >
+  Runs terraform init, fmt -check, and validate. When post_review is true,
+  posts a PR REQUEST_CHANGES review with inline line-level comments on failure
+  and dismisses any stale bot review on success.
+
+inputs:
+  directory:
+    description: Directory to run Terraform in (relative to repo root)
+    required: true
+  spec_plan:
+    description: Set to non-empty to use the speculative workspace
+    required: false
+    default: ''
+  TF_TOKEN_APP_TERRAFORM_IO:
+    description: Terraform Cloud API token
+    required: true
+  TF_CLOUD_ORGANIZATION:
+    description: Terraform Cloud organization name
+    required: true
+  post_review:
+    description: >
+      When 'true', post a PR review with errors on failure and dismiss stale
+      bot reviews on success. Set to 'false' for apply/revert paths.
+    required: false
+    default: 'false'
+
+runs:
+  using: composite
+  steps:
+    - name: Initialize Terraform
+      id: init
+      continue-on-error: true
+      shell: bash
+      working-directory: ${{ inputs.directory }}
+      env:
+        SPEC_PLAN: ${{ inputs.spec_plan }}
+        TF_TOKEN_APP_TERRAFORM_IO: ${{ inputs.TF_TOKEN_APP_TERRAFORM_IO }}
+        TF_CLOUD_ORGANIZATION: ${{ inputs.TF_CLOUD_ORGANIZATION }}
+      run: |
+        docker compose run --rm terraform-ci init -input=false -no-color 2>&1 | tee init.output.txt
+        exit ${PIPESTATUS[0]}
+
+    - name: Check Terraform Formatting
+      id: fmt
+      if: steps.init.outcome == 'success'
+      continue-on-error: true
+      shell: bash
+      working-directory: ${{ inputs.directory }}
+      env:
+        SPEC_PLAN: ${{ inputs.spec_plan }}
+        TF_TOKEN_APP_TERRAFORM_IO: ${{ inputs.TF_TOKEN_APP_TERRAFORM_IO }}
+        TF_CLOUD_ORGANIZATION: ${{ inputs.TF_CLOUD_ORGANIZATION }}
+      run: |
+        docker compose run --rm terraform-ci fmt -check -diff -no-color 2>&1 | tee fmt.output.txt
+        exit ${PIPESTATUS[0]}
+
+    - name: Validate Terraform Configuration
+      id: validate
+      if: steps.init.outcome == 'success'
+      continue-on-error: true
+      shell: bash
+      working-directory: ${{ inputs.directory }}
+      env:
+        SPEC_PLAN: ${{ inputs.spec_plan }}
+        TF_TOKEN_APP_TERRAFORM_IO: ${{ inputs.TF_TOKEN_APP_TERRAFORM_IO }}
+        TF_CLOUD_ORGANIZATION: ${{ inputs.TF_CLOUD_ORGANIZATION }}
+      run: |
+        docker compose run --rm terraform-ci validate -no-color 2>&1 | tee validate.output.txt
+        exit ${PIPESTATUS[0]}
+
+    - name: Dismiss stale review
+      if: >
+        inputs.post_review == 'true' &&
+        steps.init.outcome == 'success' &&
+        steps.fmt.outcome == 'success' &&
+        steps.validate.outcome == 'success'
+      uses: actions/github-script@v7
+      with:
+        github-token: ${{ github.token }}
+        script: |
+          const reviews = await github.rest.pulls.listReviews({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            pull_number: context.issue.number,
+          });
+
+          for (const review of reviews.data) {
+            if (review.state === 'CHANGES_REQUESTED' && review.user.type === 'Bot') {
+              await github.rest.pulls.dismissReview({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: context.issue.number,
+                review_id: review.id,
+                message: 'Formatting and validation checks now pass.',
+              });
+            }
+          }
+
+    - name: Post review with errors
+      if: >
+        inputs.post_review == 'true' && (
+          steps.init.outcome == 'failure' ||
+          steps.fmt.outcome == 'failure' ||
+          steps.validate.outcome == 'failure'
+        )
+      uses: actions/github-script@v7
+      with:
+        github-token: ${{ github.token }}
+        script: |
+          const fs = require('fs');
+          const directory = '${{ inputs.directory }}';
+
+          function safeRead(p) {
+            try { return fs.readFileSync(p, 'utf8').trim(); } catch(e) { return ''; }
+          }
+
+          const initOutput     = safeRead(`${directory}/init.output.txt`);
+          const fmtOutput      = safeRead(`${directory}/fmt.output.txt`);
+          const validateOutput = safeRead(`${directory}/validate.output.txt`);
+          const initFailed     = '${{ steps.init.outcome }}'     === 'failure';
+          const fmtFailed      = '${{ steps.fmt.outcome }}'      === 'failure';
+          const validateFailed = '${{ steps.validate.outcome }}' === 'failure';
+
+          // Build review body (used as fallback when inline comments can't be posted)
+          let reviewBody = '';
+          if (initFailed) {
+            reviewBody += `### ❌ \`terraform init\` failed\n\n\`\`\`\n${initOutput}\n\`\`\`\n\n`;
+          }
+          if (fmtFailed) {
+            reviewBody += `### ❌ \`terraform fmt\` failed\n\nRun \`terraform fmt\` to fix formatting issues.\n\n\`\`\`diff\n${fmtOutput}\n\`\`\`\n\n`;
+          }
+          if (validateFailed) {
+            reviewBody += `### ❌ \`terraform validate\` failed\n\n\`\`\`\n${validateOutput}\n\`\`\`\n`;
+          }
+
+          // Load source map so _consolidated.tf lines resolve to original files
+          let sourceMap = [];
+          try {
+            const sourceMapRaw = safeRead(`${directory}/_consolidated_source_map.json`);
+            if (sourceMapRaw) sourceMap = JSON.parse(sourceMapRaw);
+          } catch(e) {
+            core.warning(`Could not parse source map: ${e.message}`);
+          }
+
+          function resolveConsolidated(lineNum) {
+            for (const entry of sourceMap) {
+              if (lineNum >= entry.consolidated_start &&
+                  lineNum <  entry.consolidated_start + entry.line_count) {
+                return {
+                  path: `${directory}/${entry.source_file}`,
+                  line: lineNum - entry.consolidated_start + 1
+                };
+              }
+            }
+            return null;
+          }
+
+          // Parse "on <file> line N" references from init/validate output,
+          // resolving _consolidated.tf lines to the original source file.
+          function parseErrorComments(output, label) {
+            const comments = [];
+            const pattern = /on\s+(\S+\.tf)\s+line\s+(\d+)/g;
+            const seen = new Set();
+            let m;
+
+            while ((m = pattern.exec(output)) !== null) {
+              const rawFile = m[1];
+              const rawLine = parseInt(m[2]);
+
+              let targetPath, targetLine;
+              if (rawFile === '_consolidated.tf') {
+                const resolved = resolveConsolidated(rawLine);
+                if (!resolved) continue;
+                targetPath = resolved.path;
+                targetLine = resolved.line;
+              } else {
+                targetPath = `${directory}/${rawFile}`;
+                targetLine = rawLine;
+              }
+
+              const key = `${targetPath}:${targetLine}`;
+              if (seen.has(key)) continue;
+              seen.add(key);
+
+              const allLines = output.split('\n');
+              const locStr = `on ${rawFile} line ${rawLine}`;
+              const idx = allLines.findIndex(l => l.includes(locStr));
+              let errorMsg = `\`${label}\` error at this line.`;
+              if (idx >= 0) {
+                const ctx = allLines.slice(Math.max(0, idx - 1), Math.min(allLines.length, idx + 4)).join('\n');
+                errorMsg = `\`${label}\` error:\n\`\`\`\n${ctx}\n\`\`\``;
+              }
+
+              comments.push({ path: targetPath, line: targetLine, side: 'RIGHT', body: errorMsg });
+            }
+            return comments;
+          }
+
+          // Parse fmt diff for inline review comments
+          const reviewComments = [];
+
+          if (fmtFailed && fmtOutput) {
+            const lines = fmtOutput.split('\n');
+            let isConsolidated = false;
+            let currentFile = null;
+            let newLineNum = 0;
+            const commentedFiles = new Set();  // one comment per logical source file
+
+            for (const line of lines) {
+              if (line.startsWith('+++ ')) {
+                const m = line.match(/^\+\+\+ (?:[ab]\/|new\/)?(.+)/);
+                if (m) {
+                  const name = m[1].trim();
+                  isConsolidated = (name === '_consolidated.tf');
+                  currentFile = isConsolidated ? null : `${directory}/${name}`;
+                  newLineNum = 0;
+                }
+                continue;
+              }
+              if (line.startsWith('--- ')) continue;
+              if (line.startsWith('@@ ')) {
+                const m = line.match(/@@ -\d+(?:,\d+)? \+(\d+)/);
+                if (m) newLineNum = parseInt(m[1]) - 1;
+                continue;
+              }
+              if (line.startsWith('+')) {
+                newLineNum++;
+                let targetPath, targetLine;
+                if (isConsolidated) {
+                  const resolved = resolveConsolidated(newLineNum);
+                  if (resolved) { targetPath = resolved.path; targetLine = resolved.line; }
+                } else if (currentFile) {
+                  targetPath = currentFile;
+                  targetLine = newLineNum;
+                }
+                if (targetPath && !commentedFiles.has(targetPath)) {
+                  commentedFiles.add(targetPath);
+                  reviewComments.push({
+                    path: targetPath,
+                    line: targetLine,
+                    side: 'RIGHT',
+                    body: '`terraform fmt` would reformat this area. Run `terraform fmt` to auto-fix.'
+                  });
+                }
+              } else if (line.startsWith('-')) {
+                // removed line — do not advance new-file line counter
+              } else {
+                newLineNum++;
+              }
+            }
+          }
+
+          if (initFailed)     reviewComments.push(...parseErrorComments(initOutput,     'terraform init'));
+          if (validateFailed) reviewComments.push(...parseErrorComments(validateOutput, 'terraform validate'));
+
+          const commitId = context.payload.pull_request.head.sha;
+          const inlineReviewBody = reviewComments.length > 0
+            ? '❌ Terraform checks failed. See the inline comments for the specific lines that need fixing.'
+            : reviewBody.trim();
+
+          try {
+            await github.rest.pulls.createReview({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number,
+              commit_id: commitId,
+              event: 'REQUEST_CHANGES',
+              body: inlineReviewBody,
+              comments: reviewComments
+            });
+          } catch (e) {
+            core.warning(`Could not post inline review comments (lines may not be in the diff): ${e.message}`);
+            await github.rest.pulls.createReview({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number,
+              commit_id: commitId,
+              event: 'REQUEST_CHANGES',
+              body: reviewBody.trim()
+            });
+          }
+
+    - name: Fail if any check failed
+      if: >
+        always() && (
+          steps.init.outcome == 'failure' ||
+          steps.fmt.outcome == 'failure' ||
+          steps.validate.outcome == 'failure'
+        )
+      shell: bash
+      run: |
+        if [ '${{ steps.init.outcome }}' = 'failure' ]; then
+          echo "::error::terraform init failed" >&2
+        elif [ '${{ steps.fmt.outcome }}' = 'failure' ]; then
+          echo "::error::terraform fmt check failed — run 'terraform fmt' to fix" >&2
+        else
+          echo "::error::terraform validate failed" >&2
+        fi
+        exit 1

@@ -289,14 +289,12 @@ jobs:
           TF_CLOUD_ORGANIZATION: ${{ secrets.TF_CLOUD_ORGANIZATION }}
           TF_TOKEN_APP_TERRAFORM_IO: ${{ secrets.TF_TOKEN_APP_TERRAFORM_IO }}
 
-      - name: Initialize Terraform
-        env:
+      - name: Init, fmt, validate
+        uses: ./.github/shared-actions/tf-check
+        with:
+          directory: ${{ inputs.directory }}
           TF_TOKEN_APP_TERRAFORM_IO: ${{ secrets.TF_TOKEN_APP_TERRAFORM_IO }}
           TF_CLOUD_ORGANIZATION: ${{ secrets.TF_CLOUD_ORGANIZATION }}
-        run: |
-          docker compose run --rm terraform-ci init -input=false
-          docker compose run --rm terraform-ci fmt -check
-          docker compose run --rm terraform-ci validate -no-color
 
       - name: Get Changed Terraform Targets
         id: targets
@@ -513,14 +511,12 @@ jobs:
       - name: Pull Terraform Docker image
         run: docker compose pull terraform-ci
 
-      - name: Initialize Terraform
-        env:
+      - name: Init, fmt, validate
+        uses: ./.github/shared-actions/tf-check
+        with:
+          directory: ${{ inputs.directory }}
           TF_TOKEN_APP_TERRAFORM_IO: ${{ secrets.TF_TOKEN_APP_TERRAFORM_IO }}
           TF_CLOUD_ORGANIZATION: ${{ secrets.TF_CLOUD_ORGANIZATION }}
-        run: |
-          docker compose run --rm terraform-ci init -input=false
-          docker compose run --rm terraform-ci fmt -check
-          docker compose run --rm terraform-ci validate -no-color
 
       - name: Run Terraform Apply
         id: apply
