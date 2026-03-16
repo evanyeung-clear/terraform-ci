@@ -110,8 +110,185 @@ jobs:
           TF_CLOUD_ORGANIZATION: ${{ secrets.TF_CLOUD_ORGANIZATION }}
         run: |
           docker compose run --rm terraform-ci init -input=false
-          docker compose run --rm terraform-ci fmt -check
-          docker compose run --rm terraform-ci validate -no-color
+
+      - name: Check Terraform Formatting
+        id: fmt
+        continue-on-error: true
+        run: |
+          docker compose run --rm terraform-ci fmt -check -diff -no-color 2>&1 | tee fmt.output.txt
+          echo "exitcode=${PIPESTATUS[0]}" >> $GITHUB_OUTPUT
+
+      - name: Validate Terraform Configuration
+        id: validate
+        continue-on-error: true
+        run: |
+          docker compose run --rm terraform-ci validate -no-color 2>&1 | tee validate.output.txt
+          echo "exitcode=${PIPESTATUS[0]}" >> $GITHUB_OUTPUT
+
+      - name: Comment fmt and validate errors
+        if: steps.fmt.outcome == 'failure' || steps.validate.outcome == 'failure'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const directory = '${{ inputs.directory }}';
+
+            function safeRead(p) {
+              try { return fs.readFileSync(p, 'utf8').trim(); } catch(e) { return ''; }
+            }
+
+            const fmtOutput = safeRead(`${directory}/fmt.output.txt`);
+            const validateOutput = safeRead(`${directory}/validate.output.txt`);
+            const fmtFailed = '${{ steps.fmt.outcome }}' === 'failure';
+            const validateFailed = '${{ steps.validate.outcome }}' === 'failure';
+
+            // Build PR issue comment
+            let commentBody = '';
+            if (fmtFailed) {
+              commentBody += `### ❌ \`terraform fmt\` failed\n\nRun \`terraform fmt\` to fix formatting issues.\n\n\`\`\`diff\n${fmtOutput}\n\`\`\`\n\n`;
+            }
+            if (validateFailed) {
+              commentBody += `### ❌ \`terraform validate\` failed\n\n\`\`\`\n${validateOutput}\n\`\`\`\n`;
+            }
+
+            await github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: commentBody.trim()
+            });
+
+            // Load source map so _consolidated.tf lines resolve to original files
+            let sourceMap = [];
+            try {
+              const sourceMapRaw = safeRead(`${directory}/_consolidated_source_map.json`);
+              if (sourceMapRaw) sourceMap = JSON.parse(sourceMapRaw);
+            } catch(e) {
+              core.warning(`Could not parse source map: ${e.message}`);
+            }
+
+            function resolveConsolidated(lineNum) {
+              for (const entry of sourceMap) {
+                if (lineNum >= entry.consolidated_start &&
+                    lineNum <  entry.consolidated_start + entry.line_count) {
+                  return {
+                    path: `${directory}/${entry.source_file}`,
+                    line: lineNum - entry.consolidated_start + 1
+                  };
+                }
+              }
+              return null;
+            }
+
+            // Parse fmt diff for inline review comments
+            const reviewComments = [];
+
+            if (fmtFailed && fmtOutput) {
+              const lines = fmtOutput.split('\n');
+              let isConsolidated = false;
+              let currentFile = null;
+              let newLineNum = 0;
+              const commentedFiles = new Set();  // one comment per logical source file
+
+              for (const line of lines) {
+                if (line.startsWith('+++ ')) {
+                  const m = line.match(/^\+\+\+ (?:[ab]\/|new\/)?(.+)/);
+                  if (m) {
+                    const name = m[1].trim();
+                    isConsolidated = (name === '_consolidated.tf');
+                    currentFile = isConsolidated ? null : `${directory}/${name}`;
+                    newLineNum = 0;
+                  }
+                  continue;
+                }
+                if (line.startsWith('--- ')) continue;
+                if (line.startsWith('@@ ')) {
+                  const m = line.match(/@@ -\d+(?:,\d+)? \+(\d+)/);
+                  if (m) newLineNum = parseInt(m[1]) - 1;
+                  continue;
+                }
+                if (line.startsWith('+')) {
+                  newLineNum++;
+                  let targetPath, targetLine;
+                  if (isConsolidated) {
+                    const resolved = resolveConsolidated(newLineNum);
+                    if (resolved) { targetPath = resolved.path; targetLine = resolved.line; }
+                  } else if (currentFile) {
+                    targetPath = currentFile;
+                    targetLine = newLineNum;
+                  }
+                  if (targetPath && !commentedFiles.has(targetPath)) {
+                    commentedFiles.add(targetPath);
+                    reviewComments.push({
+                      path: targetPath,
+                      line: targetLine,
+                      side: 'RIGHT',
+                      body: '`terraform fmt` would reformat this area. Run `terraform fmt` to auto-fix.'
+                    });
+                  }
+                } else if (line.startsWith('-')) {
+                  // removed line — do not advance new-file line counter
+                } else {
+                  newLineNum++;
+                }
+              }
+            }
+
+            // Parse validate errors for inline review comments
+            if (validateFailed && validateOutput) {
+              const pattern = /on\s+(\S+\.tf)\s+line\s+(\d+)/g;
+              const seen = new Set();
+              let m;
+
+              while ((m = pattern.exec(validateOutput)) !== null) {
+                const filePath = `${directory}/${m[1]}`;
+                const lineNum = parseInt(m[2]);
+                const key = `${filePath}:${lineNum}`;
+                if (seen.has(key)) continue;
+                seen.add(key);
+
+                const allLines = validateOutput.split('\n');
+                const locStr = `on ${m[1]} line ${lineNum}`;
+                const idx = allLines.findIndex(l => l.includes(locStr));
+                let errorMsg = '`terraform validate` error at this line.';
+                if (idx >= 0) {
+                  const ctx = allLines.slice(Math.max(0, idx - 1), Math.min(allLines.length, idx + 4)).join('\n');
+                  errorMsg = `\`terraform validate\` error:\n\`\`\`\n${ctx}\n\`\`\``;
+                }
+
+                reviewComments.push({ path: filePath, line: lineNum, side: 'RIGHT', body: errorMsg });
+              }
+            }
+
+            // Submit PR review with REQUEST_CHANGES
+            const commitId = context.payload.pull_request.head.sha;
+            const reviewBody = reviewComments.length > 0
+              ? '❌ Terraform checks failed. See the inline comments for the specific lines that need fixing.'
+              : commentBody.trim();
+
+            try {
+              await github.rest.pulls.createReview({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: context.issue.number,
+                commit_id: commitId,
+                event: 'REQUEST_CHANGES',
+                body: reviewBody,
+                comments: reviewComments
+              });
+            } catch (e) {
+              core.warning(`Could not post inline review comments (lines may not be in the diff): ${e.message}`);
+              await github.rest.pulls.createReview({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: context.issue.number,
+                commit_id: commitId,
+                event: 'REQUEST_CHANGES',
+                body: reviewBody
+              });
+            }
+
+            core.setFailed(fmtFailed ? 'terraform fmt check failed' : 'terraform validate failed');
 
       - name: Get Changed Terraform Targets
         id: targets
