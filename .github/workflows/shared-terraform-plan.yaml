@@ -116,14 +116,14 @@ jobs:
         continue-on-error: true
         run: |
           docker compose run --rm terraform-ci fmt -check -diff -no-color 2>&1 | tee fmt.output.txt
-          echo "exitcode=${PIPESTATUS[0]}" >> $GITHUB_OUTPUT
+          exit ${PIPESTATUS[0]}
 
       - name: Validate Terraform Configuration
         id: validate
         continue-on-error: true
         run: |
           docker compose run --rm terraform-ci validate -no-color 2>&1 | tee validate.output.txt
-          echo "exitcode=${PIPESTATUS[0]}" >> $GITHUB_OUTPUT
+          exit ${PIPESTATUS[0]}
 
       - name: Comment fmt and validate errors
         if: steps.fmt.outcome == 'failure' || steps.validate.outcome == 'failure'
