@@ -111,7 +111,7 @@ jobs:
           TF_TOKEN_APP_TERRAFORM_IO: ${{ secrets.TF_TOKEN_APP_TERRAFORM_IO }}
           TF_CLOUD_ORGANIZATION: ${{ secrets.TF_CLOUD_ORGANIZATION }}
         run: |
-          docker compose run --rm terraform-ci init -input=false 2>&1 | tee init.output.txt
+          docker compose run --rm terraform-ci init -input=false -no-color 2>&1 | tee init.output.txt
           exit ${PIPESTATUS[0]}
 
       - name: Check Terraform Formatting
