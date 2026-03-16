@@ -142,21 +142,14 @@ jobs:
             const fmtFailed = '${{ steps.fmt.outcome }}' === 'failure';
             const validateFailed = '${{ steps.validate.outcome }}' === 'failure';
 
-            // Build PR issue comment
-            let commentBody = '';
+            // Build review body (used as fallback if inline comments can't be posted)
+            let reviewBody = '';
             if (fmtFailed) {
-              commentBody += `### ❌ \`terraform fmt\` failed\n\nRun \`terraform fmt\` to fix formatting issues.\n\n\`\`\`diff\n${fmtOutput}\n\`\`\`\n\n`;
+              reviewBody += `### ❌ \`terraform fmt\` failed\n\nRun \`terraform fmt\` to fix formatting issues.\n\n\`\`\`diff\n${fmtOutput}\n\`\`\`\n\n`;
             }
             if (validateFailed) {
-              commentBody += `### ❌ \`terraform validate\` failed\n\n\`\`\`\n${validateOutput}\n\`\`\`\n`;
+              reviewBody += `### ❌ \`terraform validate\` failed\n\n\`\`\`\n${validateOutput}\n\`\`\`\n`;
             }
-
-            await github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: commentBody.trim()
-            });
 
             // Load source map so _consolidated.tf lines resolve to original files
             let sourceMap = [];
@@ -262,9 +255,9 @@ jobs:
 
             // Submit PR review with REQUEST_CHANGES
             const commitId = context.payload.pull_request.head.sha;
-            const reviewBody = reviewComments.length > 0
+            const inlineReviewBody = reviewComments.length > 0
               ? '❌ Terraform checks failed. See the inline comments for the specific lines that need fixing.'
-              : commentBody.trim();
+              : reviewBody.trim();
 
             try {
               await github.rest.pulls.createReview({
@@ -273,7 +266,7 @@ jobs:
                 pull_number: context.issue.number,
                 commit_id: commitId,
                 event: 'REQUEST_CHANGES',
-                body: reviewBody,
+                body: inlineReviewBody,
                 comments: reviewComments
               });
             } catch (e) {
@@ -284,7 +277,7 @@ jobs:
                 pull_number: context.issue.number,
                 commit_id: commitId,
                 event: 'REQUEST_CHANGES',
-                body: reviewBody
+                body: reviewBody.trim()
               });
             }
 
