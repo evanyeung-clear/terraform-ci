@@ -4,7 +4,7 @@ description: "Copies the Terraform state from one workspace to another"
 inputs:
   source_workspace:
     description: "Source Terraform Cloud workspace"
-    required: truegit
+    required: true
   destination_workspace:
     description: "Destination Terraform Cloud workspace"
     required: true
@@ -21,7 +21,7 @@ runs:
   steps:
     - name: Download destination state
       id: destination
-      uses: actions/github-script@v7
+      uses: actions/github-script@v8
       with:
         script: |
           const workspace = '${{ inputs.destination_workspace }}';
@@ -51,7 +51,7 @@ runs:
 
           // download state file
           const stateId = data.data.relationships['current-state-version'].data['id'];
-          
+
           if (!stateId) {
             throw new Error(`No state version found`);
           }
@@ -85,11 +85,11 @@ runs:
 
     - name: Download source state
       id: source
-      uses: actions/github-script@v7
+      uses: actions/github-script@v8
       with:
         script: |
           const workspace = '${{ inputs.source_workspace }}';
-          
+
           // COPY THIS AND BELOW
           const path = require('path');
           const crypto = require('crypto');
@@ -115,7 +115,7 @@ runs:
 
           // download state file
           const stateId = data.data.relationships['current-state-version'].data['id'];
-          
+
           if (!stateId) {
             throw new Error(`No state version found`);
           }
@@ -130,7 +130,7 @@ runs:
           }
 
           const state = await stateResponse.json();
-          
+
           // extract serial from state file
           const serial = state.serial || 0;
           console.log(`State serial: ${serial}`);
@@ -159,7 +159,7 @@ runs:
           console.log(`State file written to ${stateFile}`);
 
     - name: Compare source and destination state
-      uses: actions/github-script@v7
+      uses: actions/github-script@v8
       with:
         script: |
           // Check source state serial is greater than destination state serial
@@ -178,7 +178,7 @@ runs:
           // or identical, if identical do not upload new state
 
     - name: Upload destination state
-      uses: actions/github-script@v7
+      uses: actions/github-script@v8
       with:
         script: |
           const fs = require('fs');
@@ -193,7 +193,7 @@ runs:
             method: 'POST',
             headers: headers
           });
-          
+
           // create a new state version
           const response = await fetch(`https://app.terraform.io/api/v2/workspaces/${{ steps.destination.outputs.workspace_id }}/state-versions`, {
             method: 'POST',
@@ -236,14 +236,14 @@ runs:
 
     - name: Unlock workspace
       if: always()
-      uses: actions/github-script@v7
+      uses: actions/github-script@v8
       with:
         script: |
           const headers = {
             'Authorization': `Bearer ${{ inputs.TF_TOKEN_APP_TERRAFORM_IO }}`,
             'Content-Type': 'application/vnd.api+json'
           };
-          
+
           // unlock workspace
           const unlockResponse = await fetch(`https://app.terraform.io/api/v2/workspaces/${{ steps.destination.outputs.workspace_id }}/actions/unlock`, {
             method: 'POST',

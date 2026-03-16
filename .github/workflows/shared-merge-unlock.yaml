@@ -49,7 +49,7 @@ jobs:
 
       - name: Check lock branch
         if: steps.lock.outputs.locked == 'true'
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         id: check
         with:
           result-encoding: string
@@ -124,7 +124,7 @@ jobs:
           environment: ${{ inputs.directory }}
 
       - name: Comment lock released
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             var body = `

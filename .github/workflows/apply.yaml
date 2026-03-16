@@ -18,7 +18,7 @@ jobs:
       production: ${{ steps.changed_files.outputs.production }}
     steps:
       - name: React to comment
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             await github.rest.reactions.createForIssueComment({
@@ -30,7 +30,7 @@ jobs:
 
       - name: Check for changes
         id: changed_files
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const { data: files } = await github.rest.pulls.listFiles({

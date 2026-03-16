@@ -64,7 +64,7 @@ jobs:
       # if lock is active, use speculative state
       - name: Get PR and commit SHA
         id: pr
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const { data: pr } = await github.rest.pulls.get({
@@ -86,7 +86,7 @@ jobs:
 
       - name: Check if lock is for this branch
         if: steps.lock.outputs.locked == 'true'
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         id: lock-check
         with:
           script: |
@@ -110,7 +110,7 @@ jobs:
           spec_plan: ${{ steps.lock-check.outputs.locked == 'true' && 'true' || '' }}
           TF_TOKEN_APP_TERRAFORM_IO: ${{ secrets.TF_TOKEN_APP_TERRAFORM_IO }}
           TF_CLOUD_ORGANIZATION: ${{ secrets.TF_CLOUD_ORGANIZATION }}
-          post_review: 'true'
+          post_review: "true"
 
       - name: Get Changed Terraform Targets
         id: targets
@@ -184,7 +184,7 @@ jobs:
           awk '/^(Error:|Plan:|Apply complete!|No changes.|Success)/' tf.console.txt > tf.summary.txt
 
       - name: Comment Terraform Plan
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const fs = require('fs');
@@ -285,7 +285,7 @@ jobs:
             })
 
       - name: Add help to apply commit status
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             github.rest.repos.createCommitStatus({

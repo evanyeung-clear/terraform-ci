@@ -11,7 +11,7 @@ inputs:
   spec_plan:
     description: Set to non-empty to use the speculative workspace
     required: false
-    default: ''
+    default: ""
   TF_TOKEN_APP_TERRAFORM_IO:
     description: Terraform Cloud API token
     required: true
@@ -23,7 +23,7 @@ inputs:
       When 'true', post a PR review with errors on failure and dismiss stale
       bot reviews on success. Set to 'false' for apply/revert paths.
     required: false
-    default: 'false'
+    default: "false"
 
 runs:
   using: composite
@@ -75,7 +75,7 @@ runs:
         steps.init.outcome == 'success' &&
         steps.fmt.outcome == 'success' &&
         steps.validate.outcome == 'success'
-      uses: actions/github-script@v7
+      uses: actions/github-script@v8
       with:
         github-token: ${{ github.token }}
         script: |
@@ -104,7 +104,7 @@ runs:
           steps.fmt.outcome == 'failure' ||
           steps.validate.outcome == 'failure'
         )
-      uses: actions/github-script@v7
+      uses: actions/github-script@v8
       with:
         github-token: ${{ github.token }}
         script: |
