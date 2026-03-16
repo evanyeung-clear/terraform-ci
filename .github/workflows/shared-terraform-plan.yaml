@@ -104,7 +104,7 @@ jobs:
             }
 
       - name: Init, fmt, validate
-        uses: ./.github/shared-actions/tf-check
+        uses: ./.github/shared-actions/tf-setup
         with:
           directory: ${{ inputs.directory }}
           spec_plan: ${{ steps.lock-check.outputs.locked == 'true' && 'true' || '' }}

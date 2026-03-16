@@ -290,7 +290,7 @@ jobs:
           TF_TOKEN_APP_TERRAFORM_IO: ${{ secrets.TF_TOKEN_APP_TERRAFORM_IO }}
 
       - name: Init, fmt, validate
-        uses: ./.github/shared-actions/tf-check
+        uses: ./.github/shared-actions/tf-setup
         with:
           directory: ${{ inputs.directory }}
           TF_TOKEN_APP_TERRAFORM_IO: ${{ secrets.TF_TOKEN_APP_TERRAFORM_IO }}
@@ -512,7 +512,7 @@ jobs:
         run: docker compose pull terraform-ci
 
       - name: Init, fmt, validate
-        uses: ./.github/shared-actions/tf-check
+        uses: ./.github/shared-actions/tf-setup
         with:
           directory: ${{ inputs.directory }}
           TF_TOKEN_APP_TERRAFORM_IO: ${{ secrets.TF_TOKEN_APP_TERRAFORM_IO }}

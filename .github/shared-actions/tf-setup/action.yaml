@@ -1,4 +1,4 @@
-name: Terraform Check
+name: Terraform Setup
 description: >
   Runs terraform init, fmt -check, and validate. When post_review is true,
   posts a PR REQUEST_CHANGES review with inline line-level comments on failure
