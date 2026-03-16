@@ -5,7 +5,7 @@ resource "okta_user" "service-account-1" {
   email      = "service1@example.com"
 }
 
-resource "okta_user" "service-account-1" {
+resource "okta_user" "service-account-2" {
   first_name = "Service"
   last_name  = "Account 2"
   login      = "service2@example.com"
