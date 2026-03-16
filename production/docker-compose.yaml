@@ -9,7 +9,7 @@ x-terraform-base: &terraform-base
     - TF_TOKEN_APP_TERRAFORM_IO
     - TF_LOG
     - TF_LOG_PATH
-    - TF_CLI_ARGS_init=-reconfigure
+    # - TF_CLI_ARGS_init=-reconfigure # for S3 backends
 
 services:
   terraform:
