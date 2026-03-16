@@ -25,11 +25,11 @@ jobs:
               pull_number: context.issue.number
             })
 
-            // if review is already approved by bot, do nothing
-            for (const review of reviews.data) {
-              if (review.user.login === 'github-actions[bot]' && review.state === 'APPROVED') {
-                return
-              }
+            // if the most recent bot review is already APPROVED, do nothing
+            const botReviews = reviews.data.filter(r => r.user.login === 'github-actions[bot]');
+            const latestBotReview = botReviews.sort((a, b) => new Date(b.submitted_at) - new Date(a.submitted_at))[0];
+            if (latestBotReview && latestBotReview.state === 'APPROVED') {
+              return
             }
 
             const result = await github.rest.pulls.createReview({
