@@ -1,0 +1,42 @@
+name: Install SOPS
+description: "Installs SOPS binary and adds it to PATH"
+
+inputs:
+  version:
+    description: "Version of SOPS to install"
+    required: true
+    type: string
+
+runs:
+  using: composite
+
+  steps:
+    - name: Download SOPS binary
+      shell: bash
+      run: |
+        curl -Lo /tmp/sops-v${{ inputs.version }}.linux.amd64 https://github.com/getsops/sops/releases/download/v${{ inputs.version }}/sops-v${{ inputs.version }}.linux.amd64
+        curl -Lo /tmp/sops-v${{ inputs.version }}.checksums.txt https://github.com/getsops/sops/releases/download/v${{ inputs.version }}/sops-v${{ inputs.version }}.checksums.txt
+
+    - name: Verify SOPS binary with checksum
+      shell: bash
+      run: |
+        # Verify the binary using the checksums file
+        cd /tmp
+
+        if ! shasum -c sops-v${{ inputs.version }}.checksums.txt --ignore-missing; then
+          echo "::error title=Checksum failed::The file downloaded does not match the checksum provided."
+          exit 1
+        fi
+
+    - name: Add SOPS to PATH
+      shell: bash
+      run: |
+        # Move to system path and make executable
+        sudo mv /tmp/sops-v${{ inputs.version }}.linux.amd64 /usr/local/bin/sops
+        sudo chmod +x /usr/local/bin/sops
+
+    - name: Verify SOPS installation
+      shell: bash
+      run: |
+        # Verify installation
+        sops --version

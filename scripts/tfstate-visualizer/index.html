@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Terraform State Network Graph</title>
+    <link rel="stylesheet" href="styles.css" />
+    <!-- Sigma.js from CDN -->
+    <script
+      src="https://cdnjs.cloudflare.com/ajax/libs/sigma.js/3.0.2/sigma.min.js"
+      integrity="sha512-c90IgWzW14albFH675ZqMPL7t0hQtA+lZ9Pc1VuF45QButMHnyOUY2i2OBURHdeE2al9k96X+02zV3cYF+ynOw=="
+      crossorigin="anonymous"
+      referrerpolicy="no-referrer"
+    ></script>
+    <script
+      src="https://cdnjs.cloudflare.com/ajax/libs/graphology/0.26.0/graphology.umd.min.js"
+      integrity="sha512-Hqa5FKQ53pYDWaRnytoNvRT3JXRac7dcH+kB3RUCX69CGNrnz5LE76Mp0z186qDv0LBWrwx5QipEoenZB5CE4w=="
+      crossorigin="anonymous"
+      referrerpolicy="no-referrer"
+    ></script>
+
+    <!-- <script src="https://cdn.jsdelivr.net/npm/graphology@0.25.4/dist/graphology.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sigma@3.0.0-beta.29/build/sigma.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/graphology-layout-forceatlas2@0.10.1/build/graphology-layout-forceatlas2.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/graphology-layout@0.6.1/build/graphology-layout.umd.min.js"></script> -->
+  </head>
+  <body>
+    <div class="container">
+      <!-- Header -->
+      <header class="header">
+        <div class="header-content">
+          <h1>🌐 Terraform State Network Graph</h1>
+          <div class="stats" id="stats">
+            <span class="stat" id="node-count">Nodes: 0</span>
+            <span class="stat" id="edge-count">Edges: 0</span>
+            <span class="stat" id="tf-version">Terraform: -</span>
+          </div>
+        </div>
+      </header>
+
+      <!-- Control Panel -->
+      <div class="controls">
+        <div class="search-container">
+          <input
+            type="text"
+            id="search-input"
+            placeholder="Search resources... (type name, type, or ID)"
+            autocomplete="off"
+          />
+          <button id="clear-search" class="icon-button" title="Clear search">
+            ✕
+          </button>
+        </div>
+
+        <div class="control-buttons">
+          <button id="reset-view" class="button" title="Reset view">
+            <span>🔄</span> Reset View
+          </button>
+          <button id="toggle-labels" class="button" title="Toggle labels">
+            <span>🏷️</span> Labels
+          </button>
+          <button id="export-btn" class="button" title="Export as image">
+            <span>📸</span> Export
+          </button>
+        </div>
+
+        <div class="legend-toggle">
+          <button id="toggle-legend" class="button">
+            <span>ℹ️</span> Legend
+          </button>
+        </div>
+      </div>
+
+      <!-- Main Graph Container -->
+      <div class="graph-container">
+        <div id="graph" class="graph"></div>
+
+        <!-- Minimap -->
+        <div id="minimap" class="minimap">
+          <canvas id="minimap-canvas"></canvas>
+        </div>
+
+        <!-- Tooltip -->
+        <div id="tooltip" class="tooltip" style="display: none">
+          <div class="tooltip-header">
+            <span class="tooltip-type" id="tooltip-type"></span>
+            <span class="tooltip-mode" id="tooltip-mode"></span>
+          </div>
+          <h3 id="tooltip-label"></h3>
+          <div id="tooltip-content"></div>
+        </div>
+
+        <!-- Legend Panel -->
+        <div id="legend" class="legend" style="display: none">
+          <h3>Legend</h3>
+          <div id="legend-content"></div>
+          <div class="legend-footer">
+            <small>Node size indicates complexity/dependencies</small>
+          </div>
+        </div>
+
+        <!-- Search Results -->
+        <div id="search-results" class="search-results" style="display: none">
+          <div class="search-results-header">
+            <h4>Search Results</h4>
+            <span id="search-count">0 results</span>
+          </div>
+          <div id="search-list" class="search-list"></div>
+        </div>
+      </div>
+
+      <!-- Info Panel (when node is selected) -->
+      <div id="info-panel" class="info-panel" style="display: none">
+        <div class="info-header">
+          <h3 id="info-title"></h3>
+          <button id="close-info" class="icon-button">✕</button>
+        </div>
+        <div id="info-content" class="info-content"></div>
+      </div>
+
+      <!-- Loading Indicator -->
+      <div id="loading" class="loading">
+        <div class="spinner"></div>
+        <p>Loading graph data...</p>
+      </div>
+
+      <!-- Error Message -->
+      <div id="error" class="error" style="display: none">
+        <h3>Error Loading Graph</h3>
+        <p id="error-message"></p>
+        <button id="retry-btn" class="button">Retry</button>
+      </div>
+    </div>
+
+    <script src="graph-data.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>

@@ -1,12 +1,23 @@
+x-terraform-base: &terraform-base
+  working_dir: /terraform
+  volumes:
+    - "./:/terraform"
+    - "~/.aws/credentials:/root/.aws/credentials"
+  environment:
+    # if SPEC_PLAN is set, append -speculative to workspace name
+    - TF_WORKSPACE=${TF_WORKSPACE:-workspace}${SPEC_PLAN:+-speculative}
+    - TF_CLOUD_ORGANIZATION
+    - TF_TOKEN_APP_TERRAFORM_IO
+    - TF_LOG
+    - TF_LOG_PATH
+    # - TF_CLI_ARGS_init=-reconfigure # for S3 backends
+
 services:
   terraform:
+    <<: *terraform-base
+    build:
+      context: .
+
+  terraform-ci:
+    <<: *terraform-base
     image: ghcr.io/evanyeung-clear/terraform-ci/terraform:1.8.3-latest
-    working_dir: /terraform
-    volumes:
-      - "./:/terraform"
-      - "~/.aws/credentials:/root/.aws/credentials"
-    environment:
-      # if SPEC_PLAN is set, append -speculative to workspace name
-      - TF_WORKSPACE=${TF_WORKSPACE:-workspace}${SPEC_PLAN:+-speculative}
-      - TF_CLOUD_ORGANIZATION
-      - TF_TOKEN_APP_TERRAFORM_IO

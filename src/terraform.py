@@ -18,6 +18,7 @@ Examples:
   uv run ../src/terraform.py apply -var-file=terraform.tfvars.json
 """
 
+import json
 import os
 import sys
 import subprocess
@@ -26,6 +27,7 @@ from pathlib import Path
 
 # Global constants
 CONSOLIDATED_FILE = "_consolidated.tf"
+SOURCE_MAP_FILE = "_consolidated_source_map.json"
 
 def log_info(message):
     """Print an info message"""
@@ -65,8 +67,9 @@ def validate_current_directory():
 def cleanup_existing_files():
     """Clean up any existing temporary files"""
     log_info("Cleaning up existing temporary files...")
-    if os.path.exists(CONSOLIDATED_FILE):
-        os.remove(CONSOLIDATED_FILE)
+    for f in [CONSOLIDATED_FILE, SOURCE_MAP_FILE]:
+        if os.path.exists(f):
+            os.remove(f)
 
 def find_terraform_executable():
     """Find terraform executable in PATH, excluding wrapper scripts"""
@@ -90,46 +93,71 @@ def find_terraform_executable():
     return terraform_bin
 
 def consolidate_tf_files():
-    """Find all .tf files in subdirectories and consolidate them"""
+    """Find all .tf files in subdirectories, consolidate them, and write a source map.
+
+    The source map (SOURCE_MAP_FILE) records which line ranges in the consolidated
+    file correspond to which original source files so that CI can map formatting
+    errors back to the correct file and line number.
+    """
     log_info(f"Consolidating .tf files from subdirectories into {CONSOLIDATED_FILE}...")
-    
+
     current_dir = Path.cwd()
     file_count = 0
-    
-    # Find all .tf files recursively
-    for tf_file in current_dir.rglob("*.tf"):
+    source_map = []   # list of {consolidated_start, source_file, line_count}
+    all_lines = []    # 0-indexed; joined with \n when writing
+
+    for tf_file in sorted(current_dir.rglob("*.tf")):
         # Skip files in the current directory (only process subdirectories)
         if tf_file.parent == current_dir:
             continue
-            
-        # Get relative path for logging
+
         rel_path = tf_file.relative_to(current_dir)
-        
+
         try:
-            # Add comment header to identify the source file
-            with open(CONSOLIDATED_FILE, "a", encoding="utf-8") as consolidated:
-                consolidated.write("\n")
-                consolidated.write("# " + "=" * 76 + "\n")
-                consolidated.write(f"# Source: {rel_path}\n")
-                consolidated.write("# " + "=" * 76 + "\n")
-                consolidated.write("\n")
-                
-                # Append the file content
-                with open(tf_file, "r", encoding="utf-8") as source:
-                    consolidated.write(source.read())
-                    consolidated.write("\n")
-            
+            with open(tf_file, "r", encoding="utf-8") as source:
+                source_content = source.read()
+
+            source_lines = source_content.splitlines()
+
+            # 5-line header block
+            all_lines.append("")
+            all_lines.append("# " + "=" * 76)
+            all_lines.append(f"# Source: {rel_path}")
+            all_lines.append("# " + "=" * 76)
+            all_lines.append("")
+
+            # consolidated_start is 1-indexed line number where source content begins
+            content_start = len(all_lines) + 1
+
+            all_lines.extend(source_lines)
+            all_lines.append("")  # blank line after each file
+
+            source_map.append({
+                "consolidated_start": content_start,
+                "source_file": str(rel_path).replace("\\", "/"),
+                "line_count": len(source_lines),
+            })
+
             file_count += 1
-            
+
         except Exception as e:
             log_error(f"Failed to append file {tf_file}: {e}")
-    
+
+    # Write consolidated file
+    with open(CONSOLIDATED_FILE, "w", encoding="utf-8") as f:
+        f.write("\n".join(all_lines) + "\n")
+
+    # Write source map — intentionally kept after terraform runs so CI can read it
+    with open(SOURCE_MAP_FILE, "w", encoding="utf-8") as f:
+        json.dump(source_map, f, indent=2)
+
     log_info(f"Consolidated {file_count} files into {CONSOLIDATED_FILE}")
+    log_info(f"Source map written to {SOURCE_MAP_FILE}")
     return file_count
 
 def is_allowed_terraform_cmd(cmd):
     """List of allowed terraform commands"""
-    return cmd in ["init", "fmt", "validate", "plan", "apply"] 
+    return cmd in ["init", "fmt", "validate", "plan", "apply", "show"] 
 
 def run_terraform(args):
     """Run terraform with the provided arguments"""

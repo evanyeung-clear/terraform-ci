@@ -15,6 +15,7 @@ on:
 
 jobs:
   auto-approve:
+    needs: plan
     if: github.event_name == 'pull_request' && github.event.action != 'closed'
     uses: ./.github/workflows/shared-auto-approve.yaml
     permissions:

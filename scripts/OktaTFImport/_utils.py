@@ -2,6 +2,7 @@
 
 import re
 from typing import Iterable, Any
+import random
 
 
 def sanitize_resource_name(name: str) -> str:
@@ -38,7 +39,7 @@ def terraform_import_block(resource_type: str, resource_name: str, resource_id: 
     """Generate a terraform import block string."""
     
     string = (f"import {{\n"
-              f"  to = {resource_type}.{resource_name}\n"
+              f"  to = {resource_type}.{resource_name}_{random.randint(1000, 9999)}\n"
               f"  id = \"{resource_id}\"\n"
               f"}}\n\n")
 
