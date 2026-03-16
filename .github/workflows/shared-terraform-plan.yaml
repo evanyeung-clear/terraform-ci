@@ -125,6 +125,29 @@ jobs:
           docker compose run --rm terraform-ci validate -no-color 2>&1 | tee validate.output.txt
           exit ${PIPESTATUS[0]}
 
+      - name: Dismiss stale fmt/validate review
+        if: steps.fmt.outcome == 'success' && steps.validate.outcome == 'success'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const reviews = await github.rest.pulls.listReviews({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number,
+            });
+
+            for (const review of reviews.data) {
+              if (review.state === 'CHANGES_REQUESTED' && review.user.type === 'Bot') {
+                await github.rest.pulls.dismissReview({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  pull_number: context.issue.number,
+                  review_id: review.id,
+                  message: 'Formatting and validation checks now pass.',
+                });
+              }
+            }
+
       - name: Comment fmt and validate errors
         if: steps.fmt.outcome == 'failure' || steps.validate.outcome == 'failure'
         uses: actions/github-script@v7
