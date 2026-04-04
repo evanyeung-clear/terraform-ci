@@ -14,7 +14,7 @@ on:
         type: string
 
 jobs:
-  plan:
+  test:
     runs-on: ${{ inputs.runner }}
 
     steps:
@@ -28,7 +28,7 @@ jobs:
           trivy-config: trivy.yaml
           scan-ref: ${{ inputs.directory }}
           scan-type: 'config'
-          hide-progress: true
+          # hide-progress: true
           format: 'sarif'
           output: 'trivy-results.sarif'
           exit-code: '1'
