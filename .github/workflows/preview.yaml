@@ -29,6 +29,7 @@ jobs:
       directory: preview
     permissions:
       # security-events: write
+      
   plan:
     if: github.event_name == 'pull_request' && github.event.action != 'closed'
     uses: ./.github/workflows/shared-terraform-plan.yaml
