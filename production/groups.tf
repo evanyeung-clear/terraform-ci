@@ -40,3 +40,8 @@ resource "okta_group" "example7" {
 resource "okta_group" "example8" {
   name = "example_user"
 }
+
+resource "okta_group" "example9" {
+  name        = "Example9"
+  description = "My Example Group"
+}
