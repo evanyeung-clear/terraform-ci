@@ -18,8 +18,6 @@ jobs:
     uses: ./.github/workflows/shared-trivy-config.yaml
     with:
       directory: preview
-    # permissions:
-      # security-events: write
 
   plan:
     if: github.event_name == 'pull_request' && github.event.action != 'closed'
