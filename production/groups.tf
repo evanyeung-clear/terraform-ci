@@ -28,6 +28,14 @@ resource "okta_group" "example6" {
   description = "My Example Group"
 }
 
+resource "okta_group" "example7" {
+  name        = "example_admin"
+}
+
+resource "okta_group" "example8" {
+  name        = "example_user"
+}
+
 import {
   to = okta_group.example6
   id = "00gq7829t9tbGRpf15d7"

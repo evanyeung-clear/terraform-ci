@@ -1,0 +1,13 @@
+rego:
+  skip-check-update: true
+  namespaces:
+    - okta
+
+misconfiguration:
+  # include-non-failures: true
+  scanners:
+    - terraform
+  raw-config-scanners:
+    - terraform
+  terraform:
+    exclude-downloaded-modules: true
