@@ -316,6 +316,7 @@ jobs:
           exit-code: '1'
       
       - name: Rewrite SARIF uri
+        if: always()
         run: .github/workflows/rewrite-sarif-uris.sh trivy-results.sarif
 
       - name: Upload Trivy scan results to GitHub Security tab
