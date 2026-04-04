@@ -16,7 +16,7 @@ on:
 jobs:
   plan:
     runs-on: ${{ inputs.runner }}
-    permissions:
+    # permissions:
       # security-events: write
 
     steps:
