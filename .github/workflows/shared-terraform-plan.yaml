@@ -309,9 +309,8 @@ jobs:
         with:
           version: v0.69.3
           trivy-config: trivy.yaml
-          scan-ref: ${{ inputs.directory }}
           scan-type: 'config'
-          # hide-progress: true
+          scan-ref: ${{ inputs.directory }}
           format: 'sarif'
           output: 'trivy-results.sarif'
           exit-code: '1'

@@ -2,6 +2,8 @@ rego:
   skip-check-update: true
   namespaces:
     - okta
+  check:
+    - policy
 
 misconfiguration:
   # include-non-failures: true
