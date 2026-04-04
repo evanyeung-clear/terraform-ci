@@ -27,7 +27,7 @@ jobs:
           version: v0.69.3
           trivy-config: trivy.yaml
           scan-ref: ${{ inputs.directory }}
-          # scan-type: 'config'
+          scan-type: 'config'
           hide-progress: true
           format: 'sarif'
           output: 'trivy-results.sarif'
