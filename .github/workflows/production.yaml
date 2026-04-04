@@ -13,7 +13,7 @@ on:
       - closed
 
 jobs:
-  plan:
+  terraform:
     if: github.event_name == 'pull_request' && github.event.action != 'closed'
     uses: ./.github/workflows/shared-terraform-plan.yaml
     with:
