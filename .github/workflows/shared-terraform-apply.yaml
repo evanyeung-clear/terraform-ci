@@ -340,6 +340,9 @@ jobs:
             exit $status
           fi
 
+          # Capture post-apply state for the outputs renderer
+          docker compose run --rm terraform show -json > tf.state.json
+
       - name: Tag commit on successful apply
         run: |
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
@@ -372,82 +375,29 @@ jobs:
           filename: latest-${{ inputs.directory }}-branch.svg
           github_token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Format Terraform Apply Diff
+      - name: Render Terraform apply comment
+        id: render
         if: always()
-        id: diff
-        run: |
-          # Strip extra lines from tf.console.txt
-          awk '
-            BEGIN {skip=0}
-            /^Warning:/ {skip=1}
-            skip && (/^Note that the -target option/ || /^The -target option/) {skip=2; next} skip==2 && NF==0 {skip=0; next}
-            skip {next}
-            {print}
-          ' tf.console.txt | 
-          awk '/^─────/,EOF {next} {print}' > tf.console.stripped.txt || true
+        uses: ./.github/shared-actions/render-tf-outputs
+        with:
+          directory: ${{ inputs.directory }}
+          config_path: .terraform-ci.yaml
+          state_path: ${{ inputs.directory }}/tf.state.json
+          console_path: ${{ inputs.directory }}/tf.console.txt
+          duration: ${{ steps.apply.outputs.duration }}
+          cmd: ${{ steps.apply.outputs.cmd }}
+          job_status: ${{ job.status }}
 
-          # Filter lines starting with "  # " and prepend diff-specific symbols based on specific keywords.
-          # https://github.com/OP5dev/TF-via-PR
-          grep '^  # ' tf.console.txt | sed \
-            -e 's/^  # \(.* be created\)/+ \1/' \
-            -e 's/^  # \(.* be destroyed\)/- \1/' \
-            -e 's/^  # \(.* be updated\|.* be replaced\)/! \1/' \
-            -e 's/^  # \(.* be read\)/~ \1/' \
-            -e 's/^  # \(.*\)/# \1/' > tf.diff.txt || true
-
-          # Grab the summary lines for the expand text
-          awk '/^(Error:|Apply complete!|No changes.|Success)/' tf.console.txt > tf.summary.txt
-
-      - name: Comment Terraform Apply
+      - name: Post Terraform apply comment
         if: always()
         uses: actions/github-script@v8
         with:
           script: |
-            const fs = require('fs');
-            // Helper function to safely read files with a default value
-            function safeReadFile(filePath, defaultContent = '') {
-              try {
-                return fs.readFileSync(filePath, 'utf8');
-              } catch (error) {
-                console.log(`Warning: Could not read file ${filePath}: ${error.message}`);
-                return defaultContent;
-              }
-            }
-
-            const runUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
-            const diff = safeReadFile('${{ inputs.directory }}/tf.diff.txt', 'No changes detected');
-            const summary = safeReadFile('${{ inputs.directory }}/tf.summary.txt', 'View output for details');
-            const cleanApply = safeReadFile('${{ inputs.directory }}/tf.console.stripped.txt', 'No apply output available');
-
-            if(${{ job.status == 'failure' }}) {
-              var body = `
-              **Terraform apply** (Okta ${{ inputs.directory }}) [failed](${runUrl}).
-              `
-            } else {
-              var body = `
-              **Terraform apply** (Okta ${{ inputs.directory }}) ran in [${{ steps.apply.outputs.duration }} seconds](${runUrl}).
-              \`\`\`
-              ${{ steps.apply.outputs.cmd }}
-              \`\`\`
-
-              <details>
-              <summary>${summary}</summary>
-
-              \`\`\`
-              ${cleanApply}
-              \`\`\`
-              </details>
-
-              ---
-              > 📌 Reminder to validate the configuration was applied correctly, then **merge this PR** to release the deployment lock.
-              `
-            }
-
-            github.rest.issues.updateComment({
+            await github.rest.issues.updateComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
               comment_id: ${{ needs.lock.outputs.comment_id }},
-              body: body
+              body: ${{ steps.render.outputs.body }}
             });
 
       - name: Update check status

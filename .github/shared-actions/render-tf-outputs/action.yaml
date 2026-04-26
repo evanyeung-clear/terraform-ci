@@ -1,0 +1,48 @@
+name: Render Terraform Apply Comment
+description: 'Format the terraform apply log/diff/outputs into a PR comment body'
+
+inputs:
+  directory:
+    description: 'Environment directory (e.g. preview, production)'
+    required: true
+  config_path:
+    description: 'Path to .terraform-ci.yaml'
+    required: false
+    default: '.terraform-ci.yaml'
+  state_path:
+    description: 'Path to `terraform show -json` output (omitted on failure)'
+    required: false
+  console_path:
+    description: 'Path to captured terraform apply console log'
+    required: true
+  duration:
+    description: 'Apply duration in seconds (success only)'
+    required: false
+  cmd:
+    description: 'Terraform apply command string (success only)'
+    required: false
+  job_status:
+    description: 'Apply job status: success or failure'
+    required: true
+
+outputs:
+  body:
+    description: 'The rendered comment body'
+    value: ${{ steps.render.outputs.body }}
+
+runs:
+  using: composite
+  steps:
+    - name: Render comment body
+      id: render
+      shell: bash
+      env:
+        INPUT_DIRECTORY: ${{ inputs.directory }}
+        INPUT_CONFIG_PATH: ${{ inputs.config_path }}
+        INPUT_STATE_PATH: ${{ inputs.state_path }}
+        INPUT_CONSOLE_PATH: ${{ inputs.console_path }}
+        INPUT_DURATION: ${{ inputs.duration }}
+        INPUT_CMD: ${{ inputs.cmd }}
+        INPUT_JOB_STATUS: ${{ inputs.job_status }}
+      run: |
+        node "${{ github.action_path }}/dist/index.js"

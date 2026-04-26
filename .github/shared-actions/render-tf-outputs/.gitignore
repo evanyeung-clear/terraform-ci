@@ -1,0 +1,6 @@
+node_modules/
+
+# Override the parent .github/shared-actions/.gitignore which ignores `dist`.
+# The bundled action output must be committed so consumers don't need to build.
+!dist/
+!dist/**

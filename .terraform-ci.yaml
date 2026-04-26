@@ -1,0 +1,15 @@
+# .terraform-ci.yaml
+# Configuration for terraform-ci output rendering in PR comments.
+#
+# `outputs` maps a Terraform resource type to the list of attributes that
+# should be displayed in the "Outputs" section of the apply comment.
+# Resources whose type is not listed here will be omitted from the section.
+
+outputs:
+  okta_group:
+    - id
+  okta_app_oauth:
+    - client_id
+  okta_app_saml:
+    - id
+    - metadata_url
