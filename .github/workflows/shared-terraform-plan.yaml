@@ -119,8 +119,23 @@ jobs:
           TF_TOKEN_APP_TERRAFORM_IO: ${{ secrets.TF_TOKEN_APP_TERRAFORM_IO }}
           TF_CLOUD_ORGANIZATION: ${{ secrets.TF_CLOUD_ORGANIZATION }}
         run: |
-          docker compose run --rm terraform-ci plan -refresh=false -json | jq -rs '[.[] | .change.resource.addr | select(.!=null) | "-target=\(.)"] | join(" ")' > targets.txt
+          docker compose run --rm terraform-ci plan -refresh=false -json > plan.json
+          jq -rs '[.[] | .change.resource.addr | select(.!=null) | "-target=\(.)"] | join(" ")' plan.json > targets.txt
           echo "targets='$(cat targets.txt)'" >> $GITHUB_OUTPUT
+
+          # Detect a mixed-import PR: planned changes contain at least one
+          # import operation AND at least one non-import change. We check the
+          # plan rather than .tf source because import {} blocks may linger in
+          # code after the import has applied.
+          imports=$(jq -es '[.[] | select(.type == "planned_change" and .change.importing != null)] | length' plan.json)
+          others=$(jq -es '[.[] | select(.type == "planned_change" and .change.importing == null and (.change.actions // [.change.action] | map(select(. != null and . != "no-op" and . != "noop")) | length > 0))] | length' plan.json)
+          echo "imports=$imports, others=$others"
+          if [ "$imports" -gt 0 ] && [ "$others" -gt 0 ]; then
+            echo "is_mixed_import=true" >> "$GITHUB_OUTPUT"
+            echo "Mixed-import PR detected: $imports import(s), $others other change(s)."
+          else
+            echo "is_mixed_import=false" >> "$GITHUB_OUTPUT"
+          fi
 
       # TODO: skip plan and apply if no changes found
 
@@ -169,6 +184,7 @@ jobs:
           cmd: ${{ steps.plan.outputs.cmd }}
           job_status: ${{ job.status }}
           body_path: ${{ inputs.directory }}/tf.comment.md
+          mixed_import: ${{ steps.targets.outputs.is_mixed_import }}
 
       - name: Comment Terraform Plan
         uses: actions/github-script@v8
@@ -246,6 +262,14 @@ jobs:
               context: "terraform-apply",
               description: "Comment \"/terraform apply\" to deploy changes",
             });
+
+      # Fail the job AFTER the comment has been posted, so the PR shows the
+      # full plan output plus the mixed-import warning.
+      - name: Fail on mixed-import PR
+        if: steps.targets.outputs.is_mixed_import == 'true'
+        run: |
+          echo "::error::PRs containing import operations must contain only imports (no creates, updates, or deletes). See the plan comment for details."
+          exit 1
 
   test:
     runs-on: ${{ inputs.runner }}

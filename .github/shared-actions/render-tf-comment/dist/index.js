@@ -31816,10 +31816,16 @@ ${outputsBlock}
 `;
 }
 
-function buildPlanBody({ directory, runUrl, duration, cmd, summary, cleanConsole, diff }) {
+function buildPlanBody({ directory, runUrl, duration, cmd, summary, cleanConsole, diff, mixedImport }) {
   const summaryLine = summary || 'View output for details';
+  const warning = mixedImport
+    ? `> [!CAUTION]
+> **This PR mixes import operations with other changes.** PRs containing imports must contain *only* imports (no creates, updates, or deletes). Please split this PR so the imports land separately from the other changes. The plan will not pass until this is resolved.
+
+`
+    : '';
   return `**Terraform plan** (Okta ${directory}) ran in [${duration} seconds](${runUrl}).
-\`\`\`
+${warning}\`\`\`
 ${cmd}
 \`\`\`
 
@@ -31877,7 +31883,8 @@ function main() {
 
     if (mode === 'plan') {
       const diff = buildDiff(consoleText);
-      body = buildPlanBody({ directory, runUrl, duration, cmd, summary, cleanConsole, diff });
+      const mixedImport = (core.getInput('mixed_import') || '').toLowerCase() === 'true';
+      body = buildPlanBody({ directory, runUrl, duration, cmd, summary, cleanConsole, diff, mixedImport });
     } else {
       const configPath = core.getInput('config_path') || '.terraform-ci.yaml';
       const statePath = core.getInput('state_path');
