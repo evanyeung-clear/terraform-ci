@@ -112,30 +112,24 @@ jobs:
           TF_CLOUD_ORGANIZATION: ${{ secrets.TF_CLOUD_ORGANIZATION }}
           post_review: "true"
 
-      - name: Get Changed Terraform Targets
-        id: targets
+      # Run a discovery plan to a binary file then `show -json` to get a full
+      # plan with before/after attribute values, which the classifier needs
+      # for attribute-level mixed-import detection.
+      - name: Run discovery plan
         env:
           SPEC_PLAN: ${{ steps.lock-check.outputs.locked == 'true' && 'true' || '' }}
           TF_TOKEN_APP_TERRAFORM_IO: ${{ secrets.TF_TOKEN_APP_TERRAFORM_IO }}
           TF_CLOUD_ORGANIZATION: ${{ secrets.TF_CLOUD_ORGANIZATION }}
         run: |
-          docker compose run --rm terraform-ci plan -refresh=false -json > plan.json
-          jq -rs '[.[] | .change.resource.addr | select(.!=null) | "-target=\(.)"] | join(" ")' plan.json > targets.txt
-          echo "targets='$(cat targets.txt)'" >> $GITHUB_OUTPUT
+          docker compose run --rm terraform-ci plan -refresh=false -out=tfplan
+          docker compose run --rm terraform-ci show -json tfplan > plan.json
 
-          # Detect a mixed-import PR: planned changes contain at least one
-          # import operation AND at least one non-import change. We check the
-          # plan rather than .tf source because import {} blocks may linger in
-          # code after the import has applied.
-          imports=$(jq -es '[.[] | select(.type == "planned_change" and .change.importing != null)] | length' plan.json)
-          others=$(jq -es '[.[] | select(.type == "planned_change" and .change.importing == null and (.change.actions // [.change.action] | map(select(. != null and . != "no-op" and . != "noop")) | length > 0))] | length' plan.json)
-          echo "imports=$imports, others=$others"
-          if [ "$imports" -gt 0 ] && [ "$others" -gt 0 ]; then
-            echo "is_mixed_import=true" >> "$GITHUB_OUTPUT"
-            echo "Mixed-import PR detected: $imports import(s), $others other change(s)."
-          else
-            echo "is_mixed_import=false" >> "$GITHUB_OUTPUT"
-          fi
+      - name: Classify plan
+        id: targets
+        uses: ./.github/shared-actions/classify-tf-plan
+        with:
+          plan_file: ${{ inputs.directory }}/plan.json
+          config_file: ${{ inputs.directory }}/.terraform-ci.yaml
 
       # TODO: skip plan and apply if no changes found
 
