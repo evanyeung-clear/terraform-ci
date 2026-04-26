@@ -268,12 +268,26 @@ jobs:
 
   test:
     runs-on: ${{ inputs.runner }}
-
+    permissions:
+      contents: read
+      security-events: write
+      actions: read
+      
     steps:
       - name: Checkout pull request
         uses: actions/checkout@v4
+      
+      - name: Check for trivy config
+        id: trivy-config
+        run: |
+          if [ -f "trivy.yaml" ]; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+          fi
 
       - name: Run Trivy scan
+        if: steps.trivy-config.outputs.exists == 'true'
         uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 #v0.35.0
         with:
           version: v0.69.3
@@ -285,11 +299,37 @@ jobs:
           exit-code: '1'
       
       - name: Rewrite SARIF uri
-        if: always()
-        run: .github/workflows/rewrite-sarif-uris.sh trivy-results.sarif
+        if: steps.trivy-config.outputs.exists == 'true' && always()
+        working-directory: ${{ github.workspace }}
+        run: |
+          REPO_ROOT="${{ github.workspace }}"
+          INPUT="trivy-results.sarif"
+          REWRITTEN="$(jq --arg repo_root "$REPO_ROOT" '
+            .runs |= map(
+              (.originalUriBaseIds // {}) as $bases |
+              .results |= map(
+                .locations |= map(
+                  if .physicalLocation.artifactLocation.uriBaseId != null then
+                    (.physicalLocation.artifactLocation.uriBaseId) as $id |
+                    if $bases[$id] != null then
+                      ($bases[$id].uri | ltrimstr("file://")) as $base_path |
+                      (if ($base_path | startswith($repo_root + "/"))
+                       then $base_path | ltrimstr($repo_root + "/")
+                       else $base_path | ltrimstr("/")
+                       end) as $rel_base |
+                      .physicalLocation.artifactLocation |= {
+                        "uri": ($rel_base + .uri)
+                      }
+                    else . end
+                  else . end
+                )
+              )
+            )
+          ' "$INPUT")"
+          echo "$REWRITTEN" > "$INPUT"
 
       - name: Upload Trivy scan results to GitHub Security tab
-        if: always()
+        if: steps.trivy-config.outputs.exists == 'true' && always()
         uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: 'trivy-results.sarif'
