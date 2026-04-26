@@ -340,8 +340,9 @@ jobs:
             exit $status
           fi
 
-          # Capture post-apply state for the outputs renderer
-          docker compose run --rm terraform show -json > tf.state.json
+          # Capture post-apply state for the outputs renderer.
+          # -T disables TTY/progress so only terraform's JSON lands on stdout.
+          docker compose run --rm -T --quiet-pull terraform-ci show -json 2>tf.state.err >tf.state.json
 
       - name: Tag commit on successful apply
         run: |
