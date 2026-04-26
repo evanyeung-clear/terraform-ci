@@ -21,9 +21,13 @@ jobs:
       vars_file: terraform.enc.tfvars.json
     secrets: inherit
     permissions:
+      contents: read
       pull-requests: write
       statuses: write
       checks: write
+      id-token: write
+      security-events: write
+      actions: read
       packages: read
 
   # Terraform apply is ran via the apply.yaml workflow
