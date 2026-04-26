@@ -6,6 +6,9 @@
 # Resources whose type is not listed here will be omitted from the section.
 
 outputs:
+  okta_user:
+    - id
+    - login
   okta_group:
     - id
   okta_app_oauth:
