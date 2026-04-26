@@ -1,8 +1,8 @@
 {
-  "name": "render-tf-outputs",
+  "name": "render-tf-comment",
   "version": "1.0.0",
   "private": true,
-  "description": "Render the Outputs section of a terraform-ci PR comment",
+  "description": "Render a terraform-ci plan or apply PR comment body",
   "main": "render.js",
   "scripts": {
     "build": "ncc build render.js -o dist --license licenses.txt"

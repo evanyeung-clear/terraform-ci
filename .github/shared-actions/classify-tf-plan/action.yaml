@@ -1,0 +1,37 @@
+name: Classify Terraform plan
+description: 'From a `terraform show -json` plan, derive -target args and detect mixed-import PRs (with attribute-level allowlist support).'
+
+inputs:
+  plan_file:
+    description: 'Path to JSON plan (output of `terraform show -json tfplan`)'
+    required: true
+  config_file:
+    description: 'Path to .terraform-ci.yaml (optional; allowlist lives under `mixed_import_allowed_additions`)'
+    required: false
+    default: '.terraform-ci.yaml'
+
+outputs:
+  targets:
+    description: "Quoted space-separated -target args (e.g. \"'-target=a -target=b'\")"
+    value: ${{ steps.classify.outputs.targets }}
+  is_mixed_import:
+    description: '"true" if the plan contains imports AND non-ignorable changes'
+    value: ${{ steps.classify.outputs.is_mixed_import }}
+  imports_count:
+    description: 'Number of resource changes that are imports'
+    value: ${{ steps.classify.outputs.imports_count }}
+  others_count:
+    description: 'Number of resource changes that are non-import, non-ignorable'
+    value: ${{ steps.classify.outputs.others_count }}
+
+runs:
+  using: composite
+  steps:
+    - name: Classify plan
+      id: classify
+      shell: bash
+      env:
+        INPUT_PLAN_FILE: ${{ inputs.plan_file }}
+        INPUT_CONFIG_FILE: ${{ inputs.config_file }}
+      run: |
+        node "${{ github.action_path }}/dist/index.js"

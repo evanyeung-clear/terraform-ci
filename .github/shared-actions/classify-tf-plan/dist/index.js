@@ -2,6 +2,137 @@
 /******/ (() => { // webpackBootstrap
 /******/ 	var __webpack_modules__ = ({
 
+/***/ 3995:
+/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
+
+// Pure classification logic — no GitHub Actions or filesystem dependencies
+// so it can be unit-tested directly.
+
+const fs = __nccwpck_require__(9896);
+const yaml = __nccwpck_require__(4281);
+
+function deepEqual(a, b) {
+  if (a === b) return true;
+  if (a === null || a === undefined || b === null || b === undefined) {
+    return (a === null || a === undefined) && (b === null || b === undefined);
+  }
+  if (typeof a !== typeof b) return false;
+  if (typeof a !== 'object') return false;
+  if (Array.isArray(a) !== Array.isArray(b)) return false;
+  if (Array.isArray(a)) {
+    if (a.length !== b.length) return false;
+    return a.every((x, i) => deepEqual(x, b[i]));
+  }
+  const ak = Object.keys(a);
+  const bk = Object.keys(b);
+  if (ak.length !== bk.length) return false;
+  return ak.every(k => deepEqual(a[k], b[k]));
+}
+
+function isNullish(v) {
+  return v === null || v === undefined;
+}
+
+function isNoOp(actions) {
+  return !actions || actions.length === 0 || actions.every(a => a === 'no-op' || a === 'noop');
+}
+
+// Normalize the optional `mixed_import_allowed_additions` config block into
+// `{ resource_type: { attribute: [allowed_values...] } }`.
+function normalizeAllowed(raw) {
+  const out = {};
+  if (!raw || typeof raw !== 'object') return out;
+  for (const [type, attrs] of Object.entries(raw)) {
+    if (!attrs || typeof attrs !== 'object') continue;
+    out[type] = {};
+    for (const [attr, val] of Object.entries(attrs)) {
+      out[type][attr] = Array.isArray(val) ? val : [val];
+    }
+  }
+  return out;
+}
+
+function loadAllowedFromFile(configPath) {
+  if (!configPath || !fs.existsSync(configPath)) return {};
+  const data = yaml.load(fs.readFileSync(configPath, 'utf8')) || {};
+  return normalizeAllowed(data.mixed_import_allowed_additions);
+}
+
+// A non-import resource_change is "ignorable" if every attribute diff is an
+// addition (before is null/missing) AND the new value is in the allowlist
+// for that resource type + attribute. A from-to modification is never
+// ignorable.
+function isIgnorableUpdate(rc, allowed) {
+  const rules = allowed[rc.type];
+  if (!rules) return false;
+
+  const before = rc.change.before || {};
+  const after = rc.change.after || {};
+
+  const keys = new Set([...Object.keys(before), ...Object.keys(after)]);
+  let sawDiff = false;
+  for (const k of keys) {
+    if (deepEqual(before[k], after[k])) continue;
+    sawDiff = true;
+    if (!isNullish(before[k])) return false;
+    const allowedValues = rules[k];
+    if (!allowedValues) return false;
+    if (!allowedValues.some(v => deepEqual(v, after[k]))) return false;
+  }
+  return sawDiff;
+}
+
+// Classify a plan into targets, imports, others, and ignored buckets.
+// `allowed` is the normalized allowlist (use normalizeAllowed first if you
+// have a raw config object).
+function classify(plan, allowed) {
+  const targets = [];
+  const imports = [];
+  const others = [];
+  const ignored = [];
+
+  for (const rc of (plan && plan.resource_changes) || []) {
+    const change = rc.change || {};
+    const actions = change.actions || [];
+    const isImport = !!change.importing;
+
+    if (isNoOp(actions) && !isImport) continue;
+
+    targets.push(`-target=${rc.address}`);
+
+    if (isImport) {
+      imports.push(rc.address);
+      continue;
+    }
+    if (isIgnorableUpdate(rc, allowed)) {
+      ignored.push(rc.address);
+      continue;
+    }
+    others.push(rc.address);
+  }
+
+  return {
+    targets,
+    imports,
+    others,
+    ignored,
+    isMixed: imports.length > 0 && others.length > 0,
+  };
+}
+
+module.exports = {
+  classify,
+  isIgnorableUpdate,
+  isNoOp,
+  isNullish,
+  deepEqual,
+  normalizeAllowed,
+  loadAllowedFromFile,
+};
+
+
+/***/ }),
+
 /***/ 4914:
 /***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
@@ -3236,7 +3367,7 @@ module.exports.types = {
   set:       __nccwpck_require__(8758),
   timestamp: __nccwpck_require__(8966),
   bool:      __nccwpck_require__(7296),
-  int:       __nccwpck_require__(2271),
+  int:       __nccwpck_require__(4652),
   merge:     __nccwpck_require__(6854),
   omap:      __nccwpck_require__(8649),
   seq:       __nccwpck_require__(7161),
@@ -6317,7 +6448,7 @@ module.exports = (__nccwpck_require__(9832).extend)({
   implicit: [
     __nccwpck_require__(4333),
     __nccwpck_require__(7296),
-    __nccwpck_require__(2271),
+    __nccwpck_require__(4652),
     __nccwpck_require__(7584)
   ]
 });
@@ -6789,7 +6920,7 @@ module.exports = new Type('tag:yaml.org,2002:float', {
 
 /***/ }),
 
-/***/ 2271:
+/***/ 4652:
 /***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
 "use strict";
@@ -30018,7 +30149,7 @@ const inherits = (__nccwpck_require__(7975).inherits)
 const StreamSearch = __nccwpck_require__(4136)
 
 const PartStream = __nccwpck_require__(612)
-const HeaderParser = __nccwpck_require__(4652)
+const HeaderParser = __nccwpck_require__(2271)
 
 const DASH = 45
 const B_ONEDASH = Buffer.from('-')
@@ -30227,7 +30358,7 @@ module.exports = Dicer
 
 /***/ }),
 
-/***/ 4652:
+/***/ 2271:
 /***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
 "use strict";
@@ -31672,184 +31803,31 @@ module.exports = parseParams
 var __webpack_exports__ = {};
 
 const fs = __nccwpck_require__(9896);
-const yaml = __nccwpck_require__(4281);
 const core = __nccwpck_require__(7484);
 
-const COMPLETION_RE = /^(?<addr>\S[^:]*):\s+(?<verb>Creation complete|Modifications complete|Destruction complete).*$/;
-
-// ---------- Console log processing ----------
-
-// Replicates the awk pipeline in the original "Format Terraform Apply Diff"
-// step: drops "Warning:" blocks tied to -target, and trims everything from the
-// final ─── divider onward.
-function stripConsoleLog(consoleText) {
-  let skip = 0;
-  const stage1 = [];
-  for (const line of consoleText.split('\n')) {
-    if (/^Warning:/.test(line)) { skip = 1; continue; }
-    if (skip && (/^Note that the -target option/.test(line) || /^The -target option/.test(line))) {
-      skip = 2;
-      continue;
-    }
-    if (skip === 2 && line.trim() === '') {
-      skip = 0;
-      continue;
-    }
-    if (skip) continue;
-    stage1.push(line);
-  }
-
-  const stage2 = [];
-  for (const line of stage1) {
-    if (/^─────/.test(line)) break;
-    stage2.push(line);
-  }
-  return stage2.join('\n');
-}
-
-// Extracts the summary line(s) the original awk used as the <details> heading.
-function extractSummary(consoleText) {
-  return consoleText
-    .split('\n')
-    .filter(l => /^(Error:|Apply complete!|No changes\.|Success)/.test(l))
-    .join('\n');
-}
-
-// ---------- Outputs section ----------
-
-function loadOutputsConfig(configPath) {
-  if (!fs.existsSync(configPath)) return {};
-  const data = yaml.load(fs.readFileSync(configPath, 'utf8')) || {};
-  const outputs = data.outputs || {};
-  if (typeof outputs !== 'object' || Array.isArray(outputs)) {
-    throw new Error(`'outputs' in ${configPath} must be a mapping`);
-  }
-  return outputs;
-}
-
-function parseCompletionLines(consoleText) {
-  const completions = {};
-  for (const line of consoleText.split('\n')) {
-    const m = COMPLETION_RE.exec(line);
-    if (m) completions[m.groups.addr.trim()] = line.trim();
-  }
-  return completions;
-}
-
-function* iterResources(state) {
-  function* walk(module) {
-    for (const r of module.resources || []) {
-      if (r.mode && r.mode !== 'managed') continue;
-      yield { address: r.address, type: r.type, values: r.values || {} };
-    }
-    for (const child of module.child_modules || []) yield* walk(child);
-  }
-  yield* walk((state.values && state.values.root_module) || {});
-}
-
-function formatAttrs(values, attrs) {
-  const width = attrs.reduce((m, a) => Math.max(m, a.length), 0);
-  return attrs.map(a => {
-    const v = values[a];
-    const vStr = v === undefined || v === null ? 'null' : JSON.stringify(v);
-    return `${a.padEnd(width)} = ${vStr}`;
-  });
-}
-
-function renderOutputs(outputsCfg, state, completions) {
-  // Only render resources that were actually applied in this run, identified
-  // by the presence of a Creation/Modifications/Destruction completion line.
-  const blocks = [];
-  for (const { address, type, values } of iterResources(state)) {
-    if (!(address in completions)) continue;
-    const attrs = outputsCfg[type];
-    if (!attrs) continue;
-    const header = completions[address];
-    const attrLines = formatAttrs(values, attrs);
-    blocks.push(
-      `- <code>${header}</code><pre>\n` +
-      attrLines.join('\n') +
-      `\n</pre>`
-    );
-  }
-  if (blocks.length === 0) return '';
-  return `<h5>Outputs</h5>\n\n${blocks.join('\n\n')}\n`;
-}
-
-// ---------- Body building ----------
-
-function buildSuccessBody({ directory, runUrl, duration, cmd, summary, cleanApply, outputs }) {
-  const summaryLine = summary || 'View output for details';
-  const outputsBlock = outputs ? `\n${outputs}\n` : '';
-  return `**Terraform apply** (Okta ${directory}) ran in [${duration} seconds](${runUrl}).
-\`\`\`
-${cmd}
-\`\`\`
-
-<details>
-<summary>${summaryLine}</summary>
-
-\`\`\`
-${cleanApply}
-\`\`\`
-</details>
-${outputsBlock}
----
-> 📌 Reminder to validate the configuration was applied correctly, then **merge this PR** to release the deployment lock.
-`;
-}
-
-function buildFailureBody({ directory, runUrl }) {
-  return `**Terraform apply** (Okta ${directory}) [failed](${runUrl}).`;
-}
-
-// ---------- Main ----------
+const { classify, loadAllowedFromFile } = __nccwpck_require__(3995);
 
 function main() {
-  const directory = core.getInput('directory', { required: true });
-  const consolePath = core.getInput('console_path', { required: true });
-  const jobStatus = core.getInput('job_status', { required: true });
+  const planPath = process.env.INPUT_PLAN_FILE;
+  const configPath = process.env.INPUT_CONFIG_FILE;
 
-  const serverUrl = process.env.GITHUB_SERVER_URL || 'https://github.com';
-  const repository = process.env.GITHUB_REPOSITORY || '';
-  const runId = process.env.GITHUB_RUN_ID || '';
-  const runUrl = `${serverUrl}/${repository}/actions/runs/${runId}`;
+  if (!planPath) throw new Error('plan_file input is required');
+  if (!fs.existsSync(planPath)) throw new Error(`plan_file not found: ${planPath}`);
 
-  let body;
-  if (jobStatus === 'failure') {
-    body = buildFailureBody({ directory, runUrl });
-  } else {
-    const configPath = core.getInput('config_path') || '.terraform-ci.yaml';
-    const statePath = core.getInput('state_path');
-    const duration = core.getInput('duration');
-    const cmd = core.getInput('cmd');
+  const plan = JSON.parse(fs.readFileSync(planPath, 'utf8'));
+  const allowed = loadAllowedFromFile(configPath);
 
-    if (!fs.existsSync(consolePath)) {
-      throw new Error(`console_path not found: ${consolePath}`);
-    }
+  const { targets, imports, others, ignored, isMixed } = classify(plan, allowed);
 
-    const consoleText = fs.readFileSync(consolePath, 'utf8');
-    const cleanApply = stripConsoleLog(consoleText);
-    const summary = extractSummary(consoleText);
+  console.log(`imports=${imports.length} others=${others.length} ignored=${ignored.length} total_targets=${targets.length}`);
+  if (imports.length) console.log(`  imports: ${imports.join(', ')}`);
+  if (others.length) console.log(`  others:  ${others.join(', ')}`);
+  if (ignored.length) console.log(`  ignored: ${ignored.join(', ')}`);
 
-    let outputs = '';
-    if (statePath && fs.existsSync(statePath)) {
-      const state = JSON.parse(fs.readFileSync(statePath, 'utf8'));
-      const outputsCfg = loadOutputsConfig(configPath);
-      const completions = parseCompletionLines(consoleText);
-      outputs = renderOutputs(outputsCfg, state, completions);
-    }
-
-    body = buildSuccessBody({ directory, runUrl, duration, cmd, summary, cleanApply, outputs });
-  }
-
-  const bodyPath = core.getInput('body_path');
-  if (bodyPath) {
-    fs.writeFileSync(bodyPath, body);
-    core.setOutput('body_path', bodyPath);
-  } else {
-    core.setOutput('body', body);
-  }
+  core.setOutput('targets', `'${targets.join(' ')}'`);
+  core.setOutput('is_mixed_import', isMixed ? 'true' : 'false');
+  core.setOutput('imports_count', String(imports.length));
+  core.setOutput('others_count', String(others.length));
 }
 
 try {

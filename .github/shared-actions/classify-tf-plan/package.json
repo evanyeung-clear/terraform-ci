@@ -1,0 +1,18 @@
+{
+  "name": "classify-tf-plan",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Classify a terraform show -json plan for CI: target list and mixed-import detection",
+  "main": "classify.js",
+  "scripts": {
+    "build": "ncc build classify.js -o dist --license licenses.txt",
+    "test": "node --test test.js"
+  },
+  "dependencies": {
+    "@actions/core": "^1.10.1",
+    "js-yaml": "^4.1.0"
+  },
+  "devDependencies": {
+    "@vercel/ncc": "^0.38.1"
+  }
+}

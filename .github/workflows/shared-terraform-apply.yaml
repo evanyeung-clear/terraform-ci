@@ -239,6 +239,8 @@ jobs:
     defaults:
       run:
         working-directory: ${{ inputs.directory }}
+    outputs:
+      is_import: ${{ steps.targets.outputs.is_import }}
 
     steps:
       - name: Comment ID
@@ -302,8 +304,19 @@ jobs:
           TF_TOKEN_APP_TERRAFORM_IO: ${{ secrets.TF_TOKEN_APP_TERRAFORM_IO }}
           TF_CLOUD_ORGANIZATION: ${{ secrets.TF_CLOUD_ORGANIZATION }}
         run: |
-          docker compose run --rm terraform-ci plan -refresh=false -json | jq -rs '[.[] | .change.resource.addr | select(.!=null) | "-target=\(.)"] | join(" ")' > targets.txt
+          docker compose run --rm terraform-ci plan -refresh=false -json > plan.json
+          jq -rs '[.[] | .change.resource.addr | select(.!=null) | "-target=\(.)"] | join(" ")' plan.json > targets.txt
           echo "targets='$(cat targets.txt)'" >> $GITHUB_OUTPUT
+
+          # Detect actual import operations from the plan. import {} blocks may
+          # linger in code after the resource has already been imported, so we
+          # check the plan rather than .tf source for the auto-revert decision.
+          if jq -es 'any(.[]; .type == "planned_change" and .change.importing != null)' plan.json | grep -q true; then
+            echo "is_import=true" >> "$GITHUB_OUTPUT"
+            echo "Import operations detected in plan; auto-revert will be skipped if apply fails."
+          else
+            echo "is_import=false" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Run Terraform Apply
         id: apply
@@ -379,7 +392,7 @@ jobs:
       - name: Render Terraform apply comment
         id: render
         if: always()
-        uses: ./.github/shared-actions/render-tf-outputs
+        uses: ./.github/shared-actions/render-tf-comment
         with:
           directory: ${{ inputs.directory }}
           config_path: .terraform-ci.yaml
@@ -429,7 +442,10 @@ jobs:
   revert:
     runs-on: ${{ inputs.runner }}
     needs: [lock, apply]
-    if: failure() && needs.apply.result == 'failure'
+    # Skip auto-revert when the PR contains import blocks: a partial import-apply
+    # may have already imported some resources, and reverting to main would
+    # destroy them.
+    if: failure() && needs.apply.result == 'failure' && needs.apply.outputs.is_import != 'true'
     permissions:
       contents: write
       pull-requests: write

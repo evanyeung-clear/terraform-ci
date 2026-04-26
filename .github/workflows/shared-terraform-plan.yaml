@@ -112,15 +112,24 @@ jobs:
           TF_CLOUD_ORGANIZATION: ${{ secrets.TF_CLOUD_ORGANIZATION }}
           post_review: "true"
 
-      - name: Get Changed Terraform Targets
-        id: targets
+      # Run a discovery plan to a binary file then `show -json` to get a full
+      # plan with before/after attribute values, which the classifier needs
+      # for attribute-level mixed-import detection.
+      - name: Run discovery plan
         env:
           SPEC_PLAN: ${{ steps.lock-check.outputs.locked == 'true' && 'true' || '' }}
           TF_TOKEN_APP_TERRAFORM_IO: ${{ secrets.TF_TOKEN_APP_TERRAFORM_IO }}
           TF_CLOUD_ORGANIZATION: ${{ secrets.TF_CLOUD_ORGANIZATION }}
         run: |
-          docker compose run --rm terraform-ci plan -refresh=false -json | jq -rs '[.[] | .change.resource.addr | select(.!=null) | "-target=\(.)"] | join(" ")' > targets.txt
-          echo "targets='$(cat targets.txt)'" >> $GITHUB_OUTPUT
+          docker compose run --rm terraform-ci plan -refresh=false -out=tfplan
+          docker compose run --rm terraform-ci show -json tfplan > plan.json
+
+      - name: Classify plan
+        id: targets
+        uses: ./.github/shared-actions/classify-tf-plan
+        with:
+          plan_file: ${{ inputs.directory }}/plan.json
+          config_file: ${{ inputs.directory }}/.terraform-ci.yaml
 
       # TODO: skip plan and apply if no changes found
 
@@ -158,45 +167,24 @@ jobs:
             exit $status
           fi
 
-      - name: Format Terraform Plan Diff
-        id: diff
-        run: |
-          # Strip extra lines from tf.console.txt
-          awk '
-            BEGIN {skip=0}
-            /^Warning:/ {skip=1}
-            skip && (/^Note that the -target option/ || /^The -target option/) {skip=2; next} skip==2 && NF==0 {skip=0; next}
-            skip {next}
-            {print}
-          ' tf.console.txt | 
-          awk '/^─────/,EOF {next} {print}' > tf.console.stripped.txt || true
-
-          # Filter lines starting with "  # " and prepend diff-specific symbols based on specific keywords.
-          # https://github.com/OP5dev/TF-via-PR
-          grep '^  # ' tf.console.txt | sed \
-            -e 's/^  # \(.* be created\)/+ \1/' \
-            -e 's/^  # \(.* be destroyed\)/- \1/' \
-            -e 's/^  # \(.* be updated\|.* be replaced\)/! \1/' \
-            -e 's/^  # \(.* be read\)/~ \1/' \
-            -e 's/^  # \(.*\)/# \1/' > tf.diff.txt || true
-
-          # Grab the summary lines for the expand text
-          awk '/^(Error:|Plan:|Apply complete!|No changes.|Success)/' tf.console.txt > tf.summary.txt
+      - name: Render Terraform plan comment
+        id: render
+        uses: ./.github/shared-actions/render-tf-comment
+        with:
+          mode: plan
+          directory: ${{ inputs.directory }}
+          console_path: ${{ inputs.directory }}/tf.console.txt
+          duration: ${{ steps.plan.outputs.duration }}
+          cmd: ${{ steps.plan.outputs.cmd }}
+          job_status: ${{ job.status }}
+          body_path: ${{ inputs.directory }}/tf.comment.md
+          mixed_import: ${{ steps.targets.outputs.is_mixed_import }}
 
       - name: Comment Terraform Plan
         uses: actions/github-script@v8
         with:
           script: |
             const fs = require('fs');
-            // Helper function to safely read files with a default value
-            function safeReadFile(filePath, defaultContent = '') {
-              try {
-                return fs.readFileSync(filePath, 'utf8');
-              } catch (error) {
-                console.log(`Warning: Could not read file ${filePath}: ${error.message}`);
-                return defaultContent;
-              }
-            }
 
             // Helper function to mark previous comment as out of date
             async function markOutdated(search, notice) {
@@ -242,47 +230,19 @@ jobs:
               }
             }
 
-            const runUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
-            const diff = safeReadFile('${{ inputs.directory }}/tf.diff.txt', 'No changes detected');
-            const summary = safeReadFile('${{ inputs.directory }}/tf.summary.txt', 'View output for details');
-            const cleanPlan = safeReadFile('${{ inputs.directory }}/tf.console.stripped.txt', 'No plan output available');
-
-            // Find previous plan comment and mark as out of date
+            // Find previous plan/apply comments and mark as out of date
             const planCommentTag = `**Terraform plan** (Okta ${{ inputs.directory }})`;
-            const planOutOfDateNotice = 'This plan is out of date. A new plan has been performed.';
-            markOutdated(planCommentTag, planOutOfDateNotice);
-
-            // Find previous apply comment and mark as out of date
+            await markOutdated(planCommentTag, 'This plan is out of date. A new plan has been performed.');
             const applyCommentTag = `**Terraform apply** (Okta ${{ inputs.directory }})`;
-            const applyOutOfDateNotice = 'This apply is out of date. A new apply has been performed.';
-            markOutdated(applyCommentTag, applyOutOfDateNotice);
+            await markOutdated(applyCommentTag, 'This apply is out of date. A new apply has been performed.');
 
-            var body = `
-            **Terraform plan** (Okta ${{ inputs.directory }}) ran in [${{ steps.plan.outputs.duration }} seconds](${runUrl}).
-            \`\`\`
-            ${{ steps.plan.outputs.cmd }}
-            \`\`\`
-
-            #### Diff of changes
-            \`\`\`diff
-            ${diff}
-            \`\`\`
-
-            <details>
-            <summary>${summary}</summary>
-
-            \`\`\`
-            ${cleanPlan}
-            \`\`\`
-            </details>
-            `
-
-            github.rest.issues.createComment({
+            const body = fs.readFileSync('${{ steps.render.outputs.body_path }}', 'utf8');
+            await github.rest.issues.createComment({
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: body
-            })
+              body
+            });
 
       - name: Add help to apply commit status
         uses: actions/github-script@v8
@@ -296,6 +256,14 @@ jobs:
               context: "terraform-apply",
               description: "Comment \"/terraform apply\" to deploy changes",
             });
+
+      # Fail the job AFTER the comment has been posted, so the PR shows the
+      # full plan output plus the mixed-import warning.
+      - name: Fail on mixed-import PR
+        if: steps.targets.outputs.is_mixed_import == 'true'
+        run: |
+          echo "::error::PRs containing import operations must contain only imports (no creates, updates, or deletes). See the plan comment for details."
+          exit 1
 
   test:
     runs-on: ${{ inputs.runner }}

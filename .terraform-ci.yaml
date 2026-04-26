@@ -16,3 +16,8 @@ outputs:
   okta_app_saml:
     - id
     - metadata_url
+mixed_import_allowed:
+  okta_app_oauth:
+    refresh_token_rotation: STATIC
+    refresh_token_leeway: 0
+    omit_secret: false

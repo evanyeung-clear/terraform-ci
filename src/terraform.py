@@ -157,7 +157,67 @@ def consolidate_tf_files():
 
 def is_allowed_terraform_cmd(cmd):
     """List of allowed terraform commands"""
-    return cmd in ["init", "fmt", "validate", "plan", "apply", "show"] 
+    return cmd in ["init", "fmt", "validate", "plan", "apply", "show", "plan-light"]
+
+def discover_changed_targets(terraform_bin):
+    """Run a JSON-mode plan and return the list of changed resource addresses.
+
+    Mirrors the CI pipeline:
+        terraform plan -refresh=false -json | jq '.change.resource.addr'
+    Returns a deduped list preserving discovery order.
+    """
+    cmd = [terraform_bin, "plan", "-refresh=false", "-input=false", "-json"]
+    log_info(f"Discovering changed resources: {' '.join(cmd)}")
+    try:
+        result = subprocess.run(cmd, capture_output=True, text=True, check=False)
+    except Exception as e:
+        log_error(f"Failed to run discovery plan: {e}")
+        return None
+
+    if result.returncode != 0:
+        log_error(f"Discovery plan failed (exit {result.returncode})")
+        if result.stderr:
+            sys.stderr.write(result.stderr)
+        return None
+
+    targets = []
+    seen = set()
+    for line in result.stdout.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            obj = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        addr = obj.get("change", {}).get("resource", {}).get("addr")
+        if addr and addr not in seen:
+            seen.add(addr)
+            targets.append(addr)
+    return targets
+
+def run_plan_light(args, terraform_bin):
+    """plan-light: discover changed resources, then run plan with -target=... for each.
+
+    args: arguments after 'plan-light' (forwarded to the final plan call).
+    """
+    targets = discover_changed_targets(terraform_bin)
+    if targets is None:
+        return 1
+    if not targets:
+        log_info("No changes detected; skipping plan.")
+        return 0
+
+    log_info(f"Found {len(targets)} target(s): {', '.join(targets)}")
+    target_args = [f"-target={a}" for a in targets]
+    final_cmd = [terraform_bin, "plan"] + args + target_args
+    log_info(f"Running: {' '.join(final_cmd)}")
+    try:
+        result = subprocess.run(final_cmd, check=False)
+        return result.returncode
+    except Exception as e:
+        log_error(f"Failed to run terraform: {e}")
+        return 1
 
 def run_terraform(args):
     """Run terraform with the provided arguments"""
@@ -166,9 +226,13 @@ def run_terraform(args):
         return 1
 
     terraform_bin = find_terraform_executable()
-    log_info(f"Running terraform with arguments: {' '.join(args)}")
     log_info(f"Using terraform executable: {terraform_bin}")
-    
+
+    if args[0] == "plan-light":
+        return run_plan_light(args[1:], terraform_bin)
+
+    log_info(f"Running terraform with arguments: {' '.join(args)}")
+
     # Run terraform with all provided arguments
     try:
         result = subprocess.run([terraform_bin] + args, check=False)
