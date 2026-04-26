@@ -24,4 +24,5 @@ resource "okta_user" "test4" {
   last_name  = "Smith"
   login      = "example4@example.com"
   email      = "example4@example.com"
+
 }
