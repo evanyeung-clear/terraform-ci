@@ -172,7 +172,13 @@ function main() {
     body = buildSuccessBody({ directory, runUrl, duration, cmd, summary, cleanApply, outputs });
   }
 
-  core.setOutput('body', body);
+  const bodyPath = core.getInput('body_path');
+  if (bodyPath) {
+    fs.writeFileSync(bodyPath, body);
+    core.setOutput('body_path', bodyPath);
+  } else {
+    core.setOutput('body', body);
+  }
 }
 
 try {

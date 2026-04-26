@@ -388,17 +388,20 @@ jobs:
           duration: ${{ steps.apply.outputs.duration }}
           cmd: ${{ steps.apply.outputs.cmd }}
           job_status: ${{ job.status }}
+          body_path: ${{ inputs.directory }}/tf.comment.md
 
       - name: Post Terraform apply comment
         if: always()
         uses: actions/github-script@v8
         with:
           script: |
+            const fs = require('fs');
+            const body = fs.readFileSync('${{ steps.render.outputs.body_path }}', 'utf8');
             await github.rest.issues.updateComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
               comment_id: ${{ needs.lock.outputs.comment_id }},
-              body: ${{ steps.render.outputs.body }}
+              body
             });
 
       - name: Update check status

@@ -24,11 +24,17 @@ inputs:
   job_status:
     description: 'Apply job status: success or failure'
     required: true
+  body_path:
+    description: 'If set, write the rendered body to this file path (recommended for large bodies that may exceed action output size limits)'
+    required: false
 
 outputs:
   body:
-    description: 'The rendered comment body'
+    description: 'The rendered comment body (only set when body_path is empty)'
     value: ${{ steps.render.outputs.body }}
+  body_path:
+    description: 'Path to the file containing the rendered body (only set when body_path input is provided)'
+    value: ${{ steps.render.outputs.body_path }}
 
 runs:
   using: composite
@@ -44,5 +50,6 @@ runs:
         INPUT_DURATION: ${{ inputs.duration }}
         INPUT_CMD: ${{ inputs.cmd }}
         INPUT_JOB_STATUS: ${{ inputs.job_status }}
+        INPUT_BODY_PATH: ${{ inputs.body_path }}
       run: |
         node "${{ github.action_path }}/dist/index.js"
