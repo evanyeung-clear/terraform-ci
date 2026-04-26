@@ -1,28 +1,32 @@
-name: Render Terraform Apply Comment
-description: 'Format the terraform apply log/diff/outputs into a PR comment body'
+name: Render Terraform PR Comment
+description: 'Format a terraform plan or apply log into a PR comment body'
 
 inputs:
+  mode:
+    description: "Either 'plan' or 'apply' (default: apply)"
+    required: false
+    default: 'apply'
   directory:
     description: 'Environment directory (e.g. preview, production)'
     required: true
   config_path:
-    description: 'Path to .terraform-ci.yaml'
+    description: 'Path to .terraform-ci.yaml (apply only)'
     required: false
     default: '.terraform-ci.yaml'
   state_path:
-    description: 'Path to `terraform show -json` output (omitted on failure)'
+    description: 'Path to `terraform show -json` output (apply only, omitted on failure)'
     required: false
   console_path:
-    description: 'Path to captured terraform apply console log'
+    description: 'Path to the captured terraform plan/apply console log'
     required: true
   duration:
-    description: 'Apply duration in seconds (success only)'
+    description: 'Run duration in seconds (success only)'
     required: false
   cmd:
-    description: 'Terraform apply command string (success only)'
+    description: 'Terraform command string (success only)'
     required: false
   job_status:
-    description: 'Apply job status: success or failure'
+    description: 'Job status: success or failure'
     required: true
   body_path:
     description: 'If set, write the rendered body to this file path (recommended for large bodies that may exceed action output size limits)'
@@ -43,6 +47,7 @@ runs:
       id: render
       shell: bash
       env:
+        INPUT_MODE: ${{ inputs.mode }}
         INPUT_DIRECTORY: ${{ inputs.directory }}
         INPUT_CONFIG_PATH: ${{ inputs.config_path }}
         INPUT_STATE_PATH: ${{ inputs.state_path }}

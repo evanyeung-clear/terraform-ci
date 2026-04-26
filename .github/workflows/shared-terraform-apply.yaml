@@ -379,7 +379,7 @@ jobs:
       - name: Render Terraform apply comment
         id: render
         if: always()
-        uses: ./.github/shared-actions/render-tf-outputs
+        uses: ./.github/shared-actions/render-tf-comment
         with:
           directory: ${{ inputs.directory }}
           config_path: .terraform-ci.yaml

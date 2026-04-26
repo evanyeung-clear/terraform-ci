@@ -40,8 +40,25 @@ function stripConsoleLog(consoleText) {
 function extractSummary(consoleText) {
   return consoleText
     .split('\n')
-    .filter(l => /^(Error:|Apply complete!|No changes\.|Success)/.test(l))
+    .filter(l => /^(Error:|Plan:|Apply complete!|No changes\.|Success)/.test(l))
     .join('\n');
+}
+
+// Builds the +/-/!/~/# diff block from the plan console output, replacing the
+// original `grep '^  # ' | sed ...` pipeline.
+function buildDiff(consoleText) {
+  const lines = consoleText
+    .split('\n')
+    .filter(l => l.startsWith('  # '))
+    .map(l => l.slice(4))
+    .map(l => {
+      if (/ be created$/.test(l)) return `+ ${l}`;
+      if (/ be destroyed$/.test(l)) return `- ${l}`;
+      if (/ be updated| be replaced$/.test(l)) return `! ${l}`;
+      if (/ be read$/.test(l)) return `~ ${l}`;
+      return `# ${l}`;
+    });
+  return lines.length === 0 ? 'No changes detected' : lines.join('\n');
 }
 
 // ---------- Outputs section ----------
@@ -107,7 +124,7 @@ function renderOutputs(outputsCfg, state, completions) {
 
 // ---------- Body building ----------
 
-function buildSuccessBody({ directory, runUrl, duration, cmd, summary, cleanApply, outputs }) {
+function buildApplyBody({ directory, runUrl, duration, cmd, summary, cleanConsole, outputs }) {
   const summaryLine = summary || 'View output for details';
   const outputsBlock = outputs ? `\n${outputs}\n` : '';
   return `**Terraform apply** (Okta ${directory}) ran in [${duration} seconds](${runUrl}).
@@ -119,7 +136,7 @@ ${cmd}
 <summary>${summaryLine}</summary>
 
 \`\`\`
-${cleanApply}
+${cleanConsole}
 \`\`\`
 </details>
 ${outputsBlock}
@@ -128,13 +145,41 @@ ${outputsBlock}
 `;
 }
 
-function buildFailureBody({ directory, runUrl }) {
-  return `**Terraform apply** (Okta ${directory}) [failed](${runUrl}).`;
+function buildPlanBody({ directory, runUrl, duration, cmd, summary, cleanConsole, diff }) {
+  const summaryLine = summary || 'View output for details';
+  return `**Terraform plan** (Okta ${directory}) ran in [${duration} seconds](${runUrl}).
+\`\`\`
+${cmd}
+\`\`\`
+
+#### Diff of changes
+\`\`\`diff
+${diff}
+\`\`\`
+
+<details>
+<summary>${summaryLine}</summary>
+
+\`\`\`
+${cleanConsole}
+\`\`\`
+</details>
+`;
+}
+
+function buildFailureBody({ mode, directory, runUrl }) {
+  const verb = mode === 'plan' ? 'plan' : 'apply';
+  return `**Terraform ${verb}** (Okta ${directory}) [failed](${runUrl}).`;
 }
 
 // ---------- Main ----------
 
 function main() {
+  const mode = (core.getInput('mode') || 'apply').toLowerCase();
+  if (mode !== 'plan' && mode !== 'apply') {
+    throw new Error(`mode must be 'plan' or 'apply', got: ${mode}`);
+  }
+
   const directory = core.getInput('directory', { required: true });
   const consolePath = core.getInput('console_path', { required: true });
   const jobStatus = core.getInput('job_status', { required: true });
@@ -146,10 +191,8 @@ function main() {
 
   let body;
   if (jobStatus === 'failure') {
-    body = buildFailureBody({ directory, runUrl });
+    body = buildFailureBody({ mode, directory, runUrl });
   } else {
-    const configPath = core.getInput('config_path') || '.terraform-ci.yaml';
-    const statePath = core.getInput('state_path');
     const duration = core.getInput('duration');
     const cmd = core.getInput('cmd');
 
@@ -158,18 +201,26 @@ function main() {
     }
 
     const consoleText = fs.readFileSync(consolePath, 'utf8');
-    const cleanApply = stripConsoleLog(consoleText);
+    const cleanConsole = stripConsoleLog(consoleText);
     const summary = extractSummary(consoleText);
 
-    let outputs = '';
-    if (statePath && fs.existsSync(statePath)) {
-      const state = JSON.parse(fs.readFileSync(statePath, 'utf8'));
-      const outputsCfg = loadOutputsConfig(configPath);
-      const completions = parseCompletionLines(consoleText);
-      outputs = renderOutputs(outputsCfg, state, completions);
-    }
+    if (mode === 'plan') {
+      const diff = buildDiff(consoleText);
+      body = buildPlanBody({ directory, runUrl, duration, cmd, summary, cleanConsole, diff });
+    } else {
+      const configPath = core.getInput('config_path') || '.terraform-ci.yaml';
+      const statePath = core.getInput('state_path');
 
-    body = buildSuccessBody({ directory, runUrl, duration, cmd, summary, cleanApply, outputs });
+      let outputs = '';
+      if (statePath && fs.existsSync(statePath)) {
+        const state = JSON.parse(fs.readFileSync(statePath, 'utf8'));
+        const outputsCfg = loadOutputsConfig(configPath);
+        const completions = parseCompletionLines(consoleText);
+        outputs = renderOutputs(outputsCfg, state, completions);
+      }
+
+      body = buildApplyBody({ directory, runUrl, duration, cmd, summary, cleanConsole, outputs });
+    }
   }
 
   const bodyPath = core.getInput('body_path');
