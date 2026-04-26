@@ -14,6 +14,9 @@ outputs:
   targets:
     description: "Quoted space-separated -target args (e.g. \"'-target=a -target=b'\")"
     value: ${{ steps.classify.outputs.targets }}
+  has_changes:
+    description: '"true" if the plan contains any resource changes (imports, creates, updates, or deletes)'
+    value: ${{ steps.classify.outputs.has_changes }}
   is_mixed_import:
     description: '"true" if the plan contains imports AND non-ignorable changes'
     value: ${{ steps.classify.outputs.is_mixed_import }}

@@ -31825,6 +31825,7 @@ function main() {
   if (ignored.length) console.log(`  ignored: ${ignored.join(', ')}`);
 
   core.setOutput('targets', `'${targets.join(' ')}'`);
+  core.setOutput('has_changes', targets.length > 0 ? 'true' : 'false');
   core.setOutput('is_mixed_import', isMixed ? 'true' : 'false');
   core.setOutput('imports_count', String(imports.length));
   core.setOutput('others_count', String(others.length));

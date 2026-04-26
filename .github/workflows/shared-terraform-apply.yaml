@@ -308,6 +308,12 @@ jobs:
           jq -rs '[.[] | .change.resource.addr | select(.!=null) | "-target=\(.)"] | join(" ")' plan.json > targets.txt
           echo "targets='$(cat targets.txt)'" >> $GITHUB_OUTPUT
 
+          if [ -s targets.txt ]; then
+            echo "has_changes=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_changes=false" >> "$GITHUB_OUTPUT"
+          fi
+
           # Detect actual import operations from the plan. import {} blocks may
           # linger in code after the resource has already been imported, so we
           # check the plan rather than .tf source for the auto-revert decision.
@@ -318,7 +324,28 @@ jobs:
             echo "is_import=false" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: No changes — skip apply
+        if: steps.targets.outputs.has_changes == 'false'
+        uses: actions/github-script@v8
+        with:
+          script: |
+            await github.rest.issues.updateComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              comment_id: ${{ needs.lock.outputs.comment_id }},
+              body: "**Terraform apply** (Okta ${{ inputs.directory }})\n\nNo changes. Infrastructure already matches configuration — nothing to apply."
+            });
+            github.rest.repos.createCommitStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              sha: "${{ needs.lock.outputs.head_sha }}",
+              state: "success",
+              context: "terraform-apply",
+              description: "No changes detected",
+            });
+
       - name: Run Terraform Apply
+        if: steps.targets.outputs.has_changes == 'true'
         id: apply
         env:
           TF_LOG: DEBUG
@@ -358,6 +385,7 @@ jobs:
           docker compose run --rm -T --quiet-pull terraform-ci show -json 2>tf.state.err >tf.state.json
 
       - name: Tag commit on successful apply
+        if: steps.targets.outputs.has_changes == 'true'
         run: |
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git config --global user.name "github-actions[bot]"
@@ -368,6 +396,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Label PR deployment lock
+        if: steps.targets.outputs.has_changes == 'true'
         uses: actions/github-script@v8
         with:
           script: |
@@ -380,6 +409,7 @@ jobs:
             });
 
       - name: Update branch deployment badge
+        if: steps.targets.outputs.has_changes == 'true'
         uses: ./.github/shared-actions/upload-badge
         with:
           label: ${{ inputs.directory }} branch
@@ -391,7 +421,7 @@ jobs:
 
       - name: Render Terraform apply comment
         id: render
-        if: always()
+        if: always() && steps.targets.outputs.has_changes == 'true'
         uses: ./.github/shared-actions/render-tf-comment
         with:
           directory: ${{ inputs.directory }}
@@ -404,7 +434,7 @@ jobs:
           body_path: ${{ inputs.directory }}/tf.comment.md
 
       - name: Post Terraform apply comment
-        if: always()
+        if: always() && steps.targets.outputs.has_changes == 'true'
         uses: actions/github-script@v8
         with:
           script: |
@@ -418,7 +448,7 @@ jobs:
             });
 
       - name: Update check status
-        if: always()
+        if: always() && steps.targets.outputs.has_changes == 'true'
         uses: actions/github-script@v8
         with:
           script: |

@@ -180,13 +180,11 @@ jobs:
           body_path: ${{ inputs.directory }}/tf.comment.md
           mixed_import: ${{ steps.targets.outputs.is_mixed_import }}
 
-      - name: Comment Terraform Plan
+      - name: Mark previous comments outdated
+        if: steps.targets.outputs.has_changes == 'true'
         uses: actions/github-script@v8
         with:
           script: |
-            const fs = require('fs');
-
-            // Helper function to mark previous comment as out of date
             async function markOutdated(search, notice) {
               const comments = await github.rest.issues.listComments({
                 issue_number: context.issue.number,
@@ -197,7 +195,6 @@ jobs:
 
               for (const comment of comments.data) {
                 if (comment.body && comment.body.includes(search) && !comment.body.includes(notice)) {
-                  // Prepend '> ' to each line of comment.body for quoting
                   const quotedBody = comment.body.split('\n').map(line => '> ' + line).join('\n');
                   await github.rest.issues.updateComment({
                     comment_id: comment.id,
@@ -206,7 +203,6 @@ jobs:
                     body: '<details><summary>' + notice + '</summary>\n\n' + quotedBody + '\n</details>'
                   });
 
-                  // Hide comment
                   const mutation = `mutation($subjectId:ID!, $classifier:ReportedContentClassifiers!) {
                     minimizeComment(input: { subjectId: $subjectId, classifier: $classifier }) {
                       clientMutationId
@@ -219,23 +215,25 @@ jobs:
                   }`;
 
                   console.log(`Hiding comment ${comment.id} (${comment.node_id})`);
-
                   const result = await github.graphql(mutation, {
                     subjectId: comment.node_id,
                     classifier: 'OUTDATED'
                   });
-
                   console.log(result);
                 }
               }
             }
 
-            // Find previous plan/apply comments and mark as out of date
             const planCommentTag = `**Terraform plan** (Okta ${{ inputs.directory }})`;
             await markOutdated(planCommentTag, 'This plan is out of date. A new plan has been performed.');
             const applyCommentTag = `**Terraform apply** (Okta ${{ inputs.directory }})`;
             await markOutdated(applyCommentTag, 'This apply is out of date. A new apply has been performed.');
 
+      - name: Comment Terraform Plan
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const fs = require('fs');
             const body = fs.readFileSync('${{ steps.render.outputs.body_path }}', 'utf8');
             await github.rest.issues.createComment({
               issue_number: context.issue.number,
@@ -248,13 +246,16 @@ jobs:
         uses: actions/github-script@v8
         with:
           script: |
+            const hasChanges = '${{ steps.targets.outputs.has_changes }}';
             github.rest.repos.createCommitStatus({
               owner: context.repo.owner,
               repo: context.repo.repo,
               sha: "${{ github.event.pull_request.head.sha }}",
-              state: "pending",
+              state: hasChanges === 'true' ? "pending" : "success",
               context: "terraform-apply",
-              description: "Comment \"/terraform apply\" to deploy changes",
+              description: hasChanges === 'true'
+                ? "Comment \"/terraform apply\" to deploy changes"
+                : "No changes detected",
             });
 
       # Fail the job AFTER the comment has been posted, so the PR shows the
