@@ -96,13 +96,13 @@ function renderOutputs(outputsCfg, state, completions) {
     const header = completions[address];
     const attrLines = formatAttrs(values, attrs);
     blocks.push(
-      `- <code>${header}</code><pre>\n` +
+      `- <code>${header}</code>\n<pre>\n` +
       attrLines.join('\n') +
       `\n</pre>`
     );
   }
   if (blocks.length === 0) return '';
-  return `<h5>Outputs</h5>\n\n${blocks.join('\n\n')}\n`;
+  return `<h4>Outputs</h4>\n\n${blocks.join('\n\n')}\n\n`;
 }
 
 // ---------- Body building ----------
@@ -124,7 +124,7 @@ ${cleanApply}
 </details>
 ${outputsBlock}
 ---
-> 📌 Reminder to validate the configuration was applied correctly, then **merge this PR** to release the deployment lock.
+📌 _Reminder to validate the configuration was applied correctly, then **merge this PR** to release the deployment lock._
 `;
 }
 
