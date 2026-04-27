@@ -29,11 +29,15 @@ resource "okta_group" "example6" {
 }
 
 resource "okta_group" "example7" {
-  name        = "example_admin"
+  name = "example_admin"
 }
 
 resource "okta_group" "example8" {
-  name        = "example_user"
+  name = "example_user"
+}
+
+resource "okta_group" "example9" {
+  name = "example_9"
 }
 
 import {
