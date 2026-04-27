@@ -272,11 +272,12 @@ jobs:
       contents: read
       security-events: write
       actions: read
-      
+      pull-requests: read
+
     steps:
       - name: Checkout pull request
         uses: actions/checkout@v4
-      
+
       - name: Check for trivy config
         id: trivy-config
         run: |
@@ -296,8 +297,8 @@ jobs:
           scan-ref: ${{ inputs.directory }}
           format: 'sarif'
           output: 'trivy-results.sarif'
-          exit-code: '1'
-      
+          exit-code: '0'
+
       - name: Rewrite SARIF uri
         if: steps.trivy-config.outputs.exists == 'true' && always()
         working-directory: ${{ github.workspace }}
@@ -333,3 +334,44 @@ jobs:
         uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: 'trivy-results.sarif'
+
+      - name: Fail on findings in changed files
+        if: steps.trivy-config.outputs.exists == 'true'
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const fs = require('fs');
+
+            const { data: prFiles } = await github.rest.pulls.listFiles({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.payload.pull_request.number
+            });
+
+            const changedFiles = new Set(
+              prFiles
+                .filter(f => f.status !== 'removed' && f.filename.startsWith('${{ inputs.directory }}/'))
+                .map(f => f.filename)
+            );
+
+            if (changedFiles.size === 0) {
+              core.info('No files changed in ${{ inputs.directory }} — skipping Trivy block');
+              return;
+            }
+
+            const sarif = JSON.parse(fs.readFileSync('trivy-results.sarif', 'utf8'));
+
+            const findings = sarif.runs.flatMap(run =>
+              (run.results || []).filter(result =>
+                (result.locations || []).some(loc => {
+                  const uri = loc.physicalLocation?.artifactLocation?.uri;
+                  return uri && changedFiles.has(uri);
+                })
+              )
+            );
+
+            if (findings.length > 0) {
+              core.setFailed(`Trivy found ${findings.length} finding(s) in changed files. See the Security tab for details.`);
+            } else {
+              core.info(`No Trivy findings in ${changedFiles.size} changed file(s)`);
+            }
