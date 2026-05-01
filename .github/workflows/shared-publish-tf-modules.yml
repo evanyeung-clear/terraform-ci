@@ -1,0 +1,170 @@
+name: Shared - Publish Terraform modules to registry
+
+# Requires:
+#   TF_TOKEN                — Terraform Cloud API token with registry write access
+#   TF_CLOUD_ORGANIZATION   — Terraform Cloud organization name
+
+on:
+  workflow_call:
+    inputs:
+      tf_addr:
+        description: "Terraform Cloud/Enterprise address"
+        required: false
+        default: "https://app.terraform.io"
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  detect-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      modules: ${{ steps.changed.outputs.modules }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect changed modules
+        id: changed
+        run: |
+          BEFORE="${{ github.event.before }}"
+          if [ "$BEFORE" = "0000000000000000000000000000000000000000" ] || [ -z "$BEFORE" ]; then
+            CHANGED=$(git diff --name-only HEAD~1 HEAD 2>/dev/null || git ls-files modules/)
+          else
+            CHANGED=$(git diff --name-only "$BEFORE" "${{ github.sha }}")
+          fi
+
+          MODULES=$(echo "$CHANGED" \
+            | grep '^modules/' \
+            | cut -d'/' -f2 \
+            | sort -u \
+            | jq -R . | jq -sc .)
+
+          echo "modules=${MODULES}" >> $GITHUB_OUTPUT
+
+  publish:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.modules != '[]'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        module: ${{ fromJson(needs.detect-changes.outputs.modules) }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect provider from module source
+        id: meta
+        run: |
+          PROVIDER=$(grep -r 'source\s*=' "modules/${{ matrix.module }}" \
+            | grep -oP '"\K[^"]+(?=")' \
+            | grep '/' | head -1 | cut -d'/' -f1)
+
+          if [ -z "$PROVIDER" ]; then
+            echo "Could not detect provider for module ${{ matrix.module }}"
+            exit 1
+          fi
+
+          echo "provider=${PROVIDER}" >> $GITHUB_OUTPUT
+
+      - name: Get latest published version
+        id: latest
+        run: |
+          RESPONSE=$(curl -sf \
+            -H "Authorization: Bearer ${{ secrets.TF_TOKEN }}" \
+            -H "Content-Type: application/vnd.api+json" \
+            "${{ inputs.tf_addr }}/api/v2/organizations/${{ secrets.TF_CLOUD_ORGANIZATION }}/registry-modules/private/${{ secrets.TF_CLOUD_ORGANIZATION }}/${{ matrix.module }}/${{ steps.meta.outputs.provider }}" \
+            2>/dev/null) || RESPONSE=""
+
+          if [ -z "$RESPONSE" ]; then
+            echo "version=0.0.0" >> $GITHUB_OUTPUT
+          else
+            LATEST=$(echo "$RESPONSE" | jq -r '
+              .data.attributes["version-statuses"]
+              | map(.version)
+              | map(split(".") | map(tonumber))
+              | sort | last
+              | map(tostring) | join(".")
+            ' 2>/dev/null || echo "0.0.0")
+            echo "version=${LATEST:-0.0.0}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Determine version bump from push commits
+        id: bump
+        run: |
+          BEFORE="${{ github.event.before }}"
+          if [ "$BEFORE" = "0000000000000000000000000000000000000000" ] || [ -z "$BEFORE" ]; then
+            COMMITS=$(git log --pretty=format:"%B" -- "modules/${{ matrix.module }}/")
+          else
+            COMMITS=$(git log "${BEFORE}..${{ github.sha }}" --pretty=format:"%B" -- "modules/${{ matrix.module }}/")
+          fi
+
+          BUMP="patch"
+          while IFS= read -r line; do
+            if echo "$line" | grep -qiE "(^BREAKING CHANGE|^[a-z]+(\([^)]*\))?!:)"; then
+              BUMP="major"
+              break
+            elif echo "$line" | grep -qiE "^feat(\([^)]*\))?:"; then
+              [ "$BUMP" != "major" ] && BUMP="minor"
+            fi
+          done <<< "$COMMITS"
+
+          echo "type=${BUMP}" >> $GITHUB_OUTPUT
+
+      - name: Calculate new version
+        id: version
+        run: |
+          IFS='.' read -r MAJOR MINOR PATCH <<< "${{ steps.latest.outputs.version }}"
+          case "${{ steps.bump.outputs.type }}" in
+            major) NEW="$((MAJOR + 1)).0.0" ;;
+            minor) NEW="${MAJOR}.$((MINOR + 1)).0" ;;
+            patch) NEW="${MAJOR}.${MINOR}.$((PATCH + 1))" ;;
+          esac
+          echo "version=${NEW}" >> $GITHUB_OUTPUT
+
+      - name: Ensure module exists in registry
+        run: |
+          STATUS=$(curl -sf -o /dev/null -w "%{http_code}" \
+            -H "Authorization: Bearer ${{ secrets.TF_TOKEN }}" \
+            "${{ inputs.tf_addr }}/api/v2/organizations/${{ secrets.TF_CLOUD_ORGANIZATION }}/registry-modules/private/${{ secrets.TF_CLOUD_ORGANIZATION }}/${{ matrix.module }}/${{ steps.meta.outputs.provider }}")
+
+          if [ "$STATUS" = "404" ]; then
+            curl -sf \
+              -X POST \
+              -H "Authorization: Bearer ${{ secrets.TF_TOKEN }}" \
+              -H "Content-Type: application/vnd.api+json" \
+              "${{ inputs.tf_addr }}/api/v2/organizations/${{ secrets.TF_CLOUD_ORGANIZATION }}/registry-modules" \
+              -d "$(jq -n \
+                --arg name "${{ matrix.module }}" \
+                --arg provider "${{ steps.meta.outputs.provider }}" \
+                '{data: {type: "registry-modules", attributes: {name: $name, provider: $provider, "registry-name": "private"}}}')"
+          fi
+
+      - name: Create module version
+        id: create_version
+        run: |
+          RESPONSE=$(curl -sf \
+            -X POST \
+            -H "Authorization: Bearer ${{ secrets.TF_TOKEN }}" \
+            -H "Content-Type: application/vnd.api+json" \
+            "${{ inputs.tf_addr }}/api/v2/organizations/${{ secrets.TF_CLOUD_ORGANIZATION }}/registry-modules/private/${{ secrets.TF_CLOUD_ORGANIZATION }}/${{ matrix.module }}/${{ steps.meta.outputs.provider }}/versions" \
+            -d "$(jq -n \
+              --arg version "${{ steps.version.outputs.version }}" \
+              '{data: {type: "registry-module-versions", attributes: {version: $version}}}')")
+
+          UPLOAD_URL=$(echo "$RESPONSE" | jq -r '.data.links.upload')
+          echo "upload_url=${UPLOAD_URL}" >> $GITHUB_OUTPUT
+
+      - name: Package and upload module
+        run: |
+          tar -czf /tmp/module.tar.gz -C "modules/${{ matrix.module }}" .
+
+          curl -sf \
+            -X PUT \
+            -H "Content-Type: application/octet-stream" \
+            --data-binary @/tmp/module.tar.gz \
+            "${{ steps.create_version.outputs.upload_url }}"

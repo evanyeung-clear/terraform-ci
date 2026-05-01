@@ -1,0 +1,14 @@
+name: Publish Terraform Modules
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - modules/**
+
+jobs:
+  publish:
+    uses: ./.github/workflows/shared-publish-tf-modules.yml
+    secrets: inherit
+    permissions:
+      contents: read
