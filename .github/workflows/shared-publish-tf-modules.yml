@@ -147,7 +147,7 @@ jobs:
       - name: Create module version
         id: create_version
         run: |
-          RESPONSE=$(curl -sf \
+          RESPONSE=$(curl -s \
             -X POST \
             -H "Authorization: Bearer ${{ secrets.TF_TOKEN }}" \
             -H "Content-Type: application/vnd.api+json" \
@@ -156,7 +156,11 @@ jobs:
               --arg version "${{ steps.version.outputs.version }}" \
               '{data: {type: "registry-module-versions", attributes: {version: $version}}}')")
 
-          UPLOAD_URL=$(echo "$RESPONSE" | jq -r '.data.links.upload')
+          UPLOAD_URL=$(echo "$RESPONSE" | jq -r '.data.links.upload // empty')
+          if [ -z "$UPLOAD_URL" ]; then
+            echo "Failed to create module version. API response: $RESPONSE"
+            exit 1
+          fi
           echo "upload_url=${UPLOAD_URL}" >> $GITHUB_OUTPUT
 
       - name: Package and upload module
