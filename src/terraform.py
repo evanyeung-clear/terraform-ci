@@ -110,6 +110,9 @@ def consolidate_tf_files():
         # Skip files in the current directory (only process subdirectories)
         if tf_file.parent == current_dir:
             continue
+        # Skip .terraform/ (downloaded providers/modules from terraform init)
+        if ".terraform" in tf_file.parts:
+            continue
 
         rel_path = tf_file.relative_to(current_dir)
 
