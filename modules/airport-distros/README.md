@@ -6,8 +6,8 @@ Creates Okta groups for each airport following naming pattern.
 
 ```
 module "atl" {
-  source = "app.terraform.io/CLEARME/evanyeung-clear-terraform-ci-airport-distros/okta"
-  version = "0.0.4"
+  source       = "app.terraform.io/CLEARME/evanyeung-clear-terraform-ci-airport-distros/okta"
+  version      = "0.0.1"
   airport_code = "ATL"
 }
 ```
