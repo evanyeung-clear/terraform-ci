@@ -60,7 +60,7 @@ jobs:
       - name: Detect provider from module source
         id: meta
         run: |
-          PROVIDER=$(grep -r 'source\s*=' "modules/${{ matrix.module }}" \
+          PROVIDER=$(grep 'source\s*=' "modules/${{ matrix.module }}/main.tf" \
             | grep -oP '"\K[^"]+(?=")' \
             | grep '/' | head -1 | cut -d'/' -f1)
 
@@ -135,7 +135,7 @@ jobs:
             "${{ inputs.tf_addr }}/api/v2/organizations/${{ secrets.TF_CLOUD_ORGANIZATION }}/registry-modules/private/${{ secrets.TF_CLOUD_ORGANIZATION }}/${{ steps.meta.outputs.registry_name }}/${{ steps.meta.outputs.provider }}")
 
           if [ "$STATUS" = "404" ]; then
-            curl -sf \
+            RESPONSE=$(curl -s \
               -X POST \
               -H "Authorization: Bearer ${{ secrets.TF_TOKEN_APP_TERRAFORM_IO }}" \
               -H "Content-Type: application/vnd.api+json" \
@@ -143,8 +143,25 @@ jobs:
               -d "$(jq -n \
                 --arg name "${{ steps.meta.outputs.registry_name }}" \
                 --arg provider "${{ steps.meta.outputs.provider }}" \
-                '{data: {type: "registry-modules", attributes: {name: $name, provider: $provider, "registry-name": "private"}}}')"
+                '{data: {type: "registry-modules", attributes: {name: $name, provider: $provider, "registry-name": "private"}}}')")
+            if ! echo "$RESPONSE" | jq -e '.data.id' > /dev/null 2>&1; then
+              echo "Failed to create module. API response: $RESPONSE"
+              exit 1
+            fi
+          elif [ "$STATUS" != "200" ]; then
+            echo "Unexpected status ${STATUS} checking module existence"
+            exit 1
           fi
+
+      - name: Debug module metadata
+        env:
+          TOKEN: ${{ secrets.TF_TOKEN_APP_TERRAFORM_IO }}
+        run: |
+          echo "registry_name: ${{ steps.meta.outputs.registry_name }}"
+          echo "provider:      ${{ steps.meta.outputs.provider }}"
+          echo "version:       ${{ steps.version.outputs.version }}"
+          echo "token set:     ${{ secrets.TF_TOKEN_APP_TERRAFORM_IO != '' }}"
+          echo "token length:  ${#TOKEN}"
 
       - name: Create module version
         id: create_version
