@@ -1,5 +1,13 @@
-Airport Distros
+# Airport Distros for Okta
 
-Creates the necessary Okta groups for each airport.
+Creates Okta groups for each airport following naming pattern.
 
-sd
+## Usage
+
+```
+module "atl" {
+  source = "app.terraform.io/CLEARME/evanyeung-clear-terraform-ci-airport-distros/okta"
+  version = "0.0.4"
+  airport_code = "ATL"
+}
+```
