@@ -69,7 +69,9 @@ jobs:
             exit 1
           fi
 
+          REPO_SLUG=$(echo "${{ github.repository }}" | tr '/' '-')
           echo "provider=${PROVIDER}" >> $GITHUB_OUTPUT
+          echo "registry_name=${REPO_SLUG}-${{ matrix.module }}" >> $GITHUB_OUTPUT
 
       - name: Get latest published version
         id: latest
@@ -77,7 +79,7 @@ jobs:
           RESPONSE=$(curl -sf \
             -H "Authorization: Bearer ${{ secrets.TF_TOKEN_APP_TERRAFORM_IO }}" \
             -H "Content-Type: application/vnd.api+json" \
-            "${{ inputs.tf_addr }}/api/v2/organizations/${{ secrets.TF_CLOUD_ORGANIZATION }}/registry-modules/private/${{ secrets.TF_CLOUD_ORGANIZATION }}/${{ matrix.module }}/${{ steps.meta.outputs.provider }}" \
+            "${{ inputs.tf_addr }}/api/v2/organizations/${{ secrets.TF_CLOUD_ORGANIZATION }}/registry-modules/private/${{ secrets.TF_CLOUD_ORGANIZATION }}/${{ steps.meta.outputs.registry_name }}/${{ steps.meta.outputs.provider }}" \
             2>/dev/null) || RESPONSE=""
 
           if [ -z "$RESPONSE" ]; then
@@ -130,7 +132,7 @@ jobs:
         run: |
           STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
             -H "Authorization: Bearer ${{ secrets.TF_TOKEN_APP_TERRAFORM_IO }}" \
-            "${{ inputs.tf_addr }}/api/v2/organizations/${{ secrets.TF_CLOUD_ORGANIZATION }}/registry-modules/private/${{ secrets.TF_CLOUD_ORGANIZATION }}/${{ matrix.module }}/${{ steps.meta.outputs.provider }}")
+            "${{ inputs.tf_addr }}/api/v2/organizations/${{ secrets.TF_CLOUD_ORGANIZATION }}/registry-modules/private/${{ secrets.TF_CLOUD_ORGANIZATION }}/${{ steps.meta.outputs.registry_name }}/${{ steps.meta.outputs.provider }}")
 
           if [ "$STATUS" = "404" ]; then
             curl -sf \
@@ -139,7 +141,7 @@ jobs:
               -H "Content-Type: application/vnd.api+json" \
               "${{ inputs.tf_addr }}/api/v2/organizations/${{ secrets.TF_CLOUD_ORGANIZATION }}/registry-modules" \
               -d "$(jq -n \
-                --arg name "${{ matrix.module }}" \
+                --arg name "${{ steps.meta.outputs.registry_name }}" \
                 --arg provider "${{ steps.meta.outputs.provider }}" \
                 '{data: {type: "registry-modules", attributes: {name: $name, provider: $provider, "registry-name": "private"}}}')"
           fi
@@ -151,7 +153,7 @@ jobs:
             -X POST \
             -H "Authorization: Bearer ${{ secrets.TF_TOKEN_APP_TERRAFORM_IO }}" \
             -H "Content-Type: application/vnd.api+json" \
-            "${{ inputs.tf_addr }}/api/v2/organizations/${{ secrets.TF_CLOUD_ORGANIZATION }}/registry-modules/private/${{ secrets.TF_CLOUD_ORGANIZATION }}/${{ matrix.module }}/${{ steps.meta.outputs.provider }}/versions" \
+            "${{ inputs.tf_addr }}/api/v2/organizations/${{ secrets.TF_CLOUD_ORGANIZATION }}/registry-modules/private/${{ secrets.TF_CLOUD_ORGANIZATION }}/${{ steps.meta.outputs.registry_name }}/${{ steps.meta.outputs.provider }}/versions" \
             -d "$(jq -n \
               --arg version "${{ steps.version.outputs.version }}" \
               '{data: {type: "registry-module-versions", attributes: {version: $version}}}')")
