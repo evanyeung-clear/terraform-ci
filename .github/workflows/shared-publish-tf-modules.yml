@@ -128,7 +128,7 @@ jobs:
 
       - name: Ensure module exists in registry
         run: |
-          STATUS=$(curl -sf -o /dev/null -w "%{http_code}" \
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
             -H "Authorization: Bearer ${{ secrets.TF_TOKEN }}" \
             "${{ inputs.tf_addr }}/api/v2/organizations/${{ secrets.TF_CLOUD_ORGANIZATION }}/registry-modules/private/${{ secrets.TF_CLOUD_ORGANIZATION }}/${{ matrix.module }}/${{ steps.meta.outputs.provider }}")
 
