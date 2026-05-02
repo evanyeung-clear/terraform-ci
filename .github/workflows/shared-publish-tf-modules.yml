@@ -37,7 +37,7 @@ jobs:
           fi
 
           MODULES=$(echo "$CHANGED" \
-            | grep '^modules/' \
+            | grep '^modules/[^/]\+/' \
             | cut -d'/' -f2 \
             | sort -u \
             | jq -R . | jq -sc .)
