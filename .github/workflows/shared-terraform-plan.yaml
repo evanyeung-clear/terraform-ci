@@ -335,7 +335,7 @@ jobs:
         with:
           sarif_file: 'trivy-results.sarif'
 
-      - name: Fail on findings in changed files
+      - name: Fail on findings introduced by this PR
         if: steps.trivy-config.outputs.exists == 'true'
         uses: actions/github-script@v8
         with:
@@ -348,11 +348,30 @@ jobs:
               pull_number: context.payload.pull_request.number
             });
 
-            const changedFiles = new Set(
-              prFiles
-                .filter(f => f.status !== 'removed' && f.filename.startsWith('${{ inputs.directory }}/'))
-                .map(f => f.filename)
-            );
+            // Build a map of filename -> Set of added line numbers.
+            // null means the entire file is new (every line counts).
+            const changedFiles = new Map();
+            for (const f of prFiles) {
+              if (f.status === 'removed') continue;
+              if (!f.filename.startsWith('${{ inputs.directory }}/')) continue;
+
+              if (f.status === 'added') {
+                changedFiles.set(f.filename, null);
+              } else {
+                const added = new Set();
+                if (f.patch) {
+                  let newLine = 0;
+                  for (const line of f.patch.split('\n')) {
+                    const m = line.match(/^@@ -\d+(?:,\d+)? \+(\d+)(?:,\d+)? @@/);
+                    if (m) { newLine = parseInt(m[1], 10); continue; }
+                    if (line.startsWith('+++') || line.startsWith('\\')) continue;
+                    if (line.startsWith('+')) { added.add(newLine++); }
+                    else if (!line.startsWith('-')) { newLine++; }
+                  }
+                }
+                changedFiles.set(f.filename, added);
+              }
+            }
 
             if (changedFiles.size === 0) {
               core.info('No files changed in ${{ inputs.directory }} — skipping Trivy block');
@@ -361,17 +380,21 @@ jobs:
 
             const sarif = JSON.parse(fs.readFileSync('trivy-results.sarif', 'utf8'));
 
-            const findings = sarif.runs.flatMap(run =>
-              (run.results || []).filter(result =>
-                (result.locations || []).some(loc => {
-                  const uri = loc.physicalLocation?.artifactLocation?.uri;
-                  return uri && changedFiles.has(uri);
-                })
-              )
+            const newFindings = sarif.runs.flatMap(run =>
+              (run.results || []).filter(result => {
+                const loc = (result.locations || [])[0];
+                if (!loc) return false;
+                const uri = loc.physicalLocation?.artifactLocation?.uri;
+                if (!uri || !changedFiles.has(uri)) return false;
+                const addedLines = changedFiles.get(uri);
+                if (addedLines === null) return true; // entire file is new
+                const startLine = loc.physicalLocation?.region?.startLine;
+                return startLine != null && addedLines.has(startLine);
+              })
             );
 
-            if (findings.length > 0) {
-              core.setFailed(`Trivy found ${findings.length} finding(s) in changed files. See the Security tab for details.`);
+            if (newFindings.length > 0) {
+              core.setFailed(`Trivy found ${newFindings.length} finding(s) on lines added by this PR. See the Security tab for details.`);
             } else {
-              core.info(`No Trivy findings in ${changedFiles.size} changed file(s)`);
+              core.info('No Trivy findings on lines added by this PR');
             }
