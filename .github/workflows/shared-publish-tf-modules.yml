@@ -75,7 +75,7 @@ jobs:
         id: latest
         run: |
           RESPONSE=$(curl -sf \
-            -H "Authorization: Bearer ${{ secrets.TF_TOKEN }}" \
+            -H "Authorization: Bearer ${{ secrets.TF_TOKEN_APP_TERRAFORM_IO }}" \
             -H "Content-Type: application/vnd.api+json" \
             "${{ inputs.tf_addr }}/api/v2/organizations/${{ secrets.TF_CLOUD_ORGANIZATION }}/registry-modules/private/${{ secrets.TF_CLOUD_ORGANIZATION }}/${{ matrix.module }}/${{ steps.meta.outputs.provider }}" \
             2>/dev/null) || RESPONSE=""
@@ -129,13 +129,13 @@ jobs:
       - name: Ensure module exists in registry
         run: |
           STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
-            -H "Authorization: Bearer ${{ secrets.TF_TOKEN }}" \
+            -H "Authorization: Bearer ${{ secrets.TF_TOKEN_APP_TERRAFORM_IO }}" \
             "${{ inputs.tf_addr }}/api/v2/organizations/${{ secrets.TF_CLOUD_ORGANIZATION }}/registry-modules/private/${{ secrets.TF_CLOUD_ORGANIZATION }}/${{ matrix.module }}/${{ steps.meta.outputs.provider }}")
 
           if [ "$STATUS" = "404" ]; then
             curl -sf \
               -X POST \
-              -H "Authorization: Bearer ${{ secrets.TF_TOKEN }}" \
+              -H "Authorization: Bearer ${{ secrets.TF_TOKEN_APP_TERRAFORM_IO }}" \
               -H "Content-Type: application/vnd.api+json" \
               "${{ inputs.tf_addr }}/api/v2/organizations/${{ secrets.TF_CLOUD_ORGANIZATION }}/registry-modules" \
               -d "$(jq -n \
@@ -149,7 +149,7 @@ jobs:
         run: |
           RESPONSE=$(curl -s \
             -X POST \
-            -H "Authorization: Bearer ${{ secrets.TF_TOKEN }}" \
+            -H "Authorization: Bearer ${{ secrets.TF_TOKEN_APP_TERRAFORM_IO }}" \
             -H "Content-Type: application/vnd.api+json" \
             "${{ inputs.tf_addr }}/api/v2/organizations/${{ secrets.TF_CLOUD_ORGANIZATION }}/registry-modules/private/${{ secrets.TF_CLOUD_ORGANIZATION }}/${{ matrix.module }}/${{ steps.meta.outputs.provider }}/versions" \
             -d "$(jq -n \
