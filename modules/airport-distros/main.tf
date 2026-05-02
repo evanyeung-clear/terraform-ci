@@ -18,5 +18,5 @@ resource "okta_group_rule" "airport" {
     okta_group.airport.id
   ]
   expression_type  = "urn:okta:expression:1.0"
-  expression_value = "user.locationcode=='${var.airport_code}'"
+  expression_value = "user.department=='${var.airport_code}'"
 }
