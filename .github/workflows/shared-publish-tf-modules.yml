@@ -1,4 +1,4 @@
-name: Shared - Publish Terraform modules to registry
+name: Publish Terraform module to registry
 
 # Requires:
 #   TF_TOKEN                — Terraform Cloud API token with registry write access
